@@ -29,18 +29,19 @@
                     <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">Dashboard</a>
                     <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">Users & Roles</a>
                     <a href="{{ route('admin.voucher-plans.index') }}" class="nav-link {{ request()->routeIs('admin.voucher-plans.*') ? 'active' : '' }}">Voucher Plans</a>
-                    <a href="#" class="nav-link">Transactions</a>
+                    <a href="{{ route('admin.vouchers.index') }}" class="nav-link {{ request()->routeIs('admin.vouchers.*') ? 'active' : '' }}">Vouchers</a>
+                    <a href="{{ route('admin.transactions.index') }}" class="nav-link {{ request()->routeIs('admin.transactions.*') ? 'active' : '' }}">Transactions</a>
                 @elseif(Auth::user()->hasRole('reseller'))
                     <div class="text-xs font-semibold text-muted mb-2 px-3 mt-4">RESELLER</div>
                     <a href="{{ route('reseller.dashboard') }}" class="nav-link {{ request()->routeIs('reseller.dashboard') ? 'active' : '' }}">Dashboard</a>
                     <a href="{{ route('reseller.vouchers.buy') }}" class="nav-link {{ request()->routeIs('reseller.vouchers.buy') ? 'active' : '' }}">Buy Vouchers</a>
-                    <a href="#" class="nav-link">My Inventory</a>
-                    <a href="#" class="nav-link">Transaction History</a>
+                    <a href="{{ route('reseller.vouchers.inventory') }}" class="nav-link {{ request()->routeIs('reseller.vouchers.inventory') ? 'active' : '' }}">My Inventory</a>
+                    <a href="{{ route('reseller.transactions.index') }}" class="nav-link {{ request()->routeIs('reseller.transactions.index') ? 'active' : '' }}">Transaction History</a>
                 @elseif(Auth::user()->hasRole('customer'))
                     <div class="text-xs font-semibold text-muted mb-2 px-3 mt-4">CUSTOMER</div>
                     <a href="{{ route('customer.dashboard') }}" class="nav-link {{ request()->routeIs('customer.dashboard') ? 'active' : '' }}">Dashboard</a>
                     <a href="{{ route('customer.vouchers.redeem') }}" class="nav-link {{ request()->routeIs('customer.vouchers.redeem') ? 'active' : '' }}">Redeem Voucher</a>
-                    <a href="#" class="nav-link">My Vouchers</a>
+                    <a href="{{ route('customer.vouchers.history') }}" class="nav-link {{ request()->routeIs('customer.vouchers.history') ? 'active' : '' }}">My Vouchers</a>
                 @endif
             </nav>
 

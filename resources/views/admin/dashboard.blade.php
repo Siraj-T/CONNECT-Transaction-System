@@ -10,17 +10,17 @@
 <div class="grid md:grid-cols-3 gap-6 mb-6">
     <div class="card">
         <div class="text-sm font-semibold text-muted mb-2">Total Revenue</div>
-        <div class="text-3xl font-bold">124,500 <span class="text-sm font-normal text-muted">LYD</span></div>
+        <div class="text-3xl font-bold">{{ number_format($totalRevenue, 3) }} <span class="text-sm font-normal text-muted">LYD</span></div>
     </div>
     
     <div class="card">
         <div class="text-sm font-semibold text-muted mb-2">Active Resellers</div>
-        <div class="text-3xl font-bold">42</div>
+        <div class="text-3xl font-bold">{{ number_format($activeResellers) }}</div>
     </div>
 
     <div class="card">
         <div class="text-sm font-semibold text-muted mb-2">Vouchers Sold Today</div>
-        <div class="text-3xl font-bold">856</div>
+        <div class="text-3xl font-bold">{{ number_format($vouchersSoldToday) }}</div>
     </div>
 </div>
 
@@ -38,20 +38,19 @@
                 </tr>
             </thead>
             <tbody>
+                @forelse($recentTransactions as $txn)
                 <tr>
-                    <td class="font-semibold">TXN-20261006-001</td>
-                    <td>Reseller Topup</td>
-                    <td>+500.000 LYD</td>
-                    <td><span class="badge badge-success">Completed</span></td>
-                    <td class="text-muted">Just now</td>
+                    <td class="font-semibold">{{ $txn->reference_no }}</td>
+                    <td class="capitalize">{{ str_replace('_', ' ', $txn->type) }}</td>
+                    <td>{{ $txn->type == 'wallet_topup' || $txn->type == 'purchase' ? '+' : '' }}{{ number_format($txn->total_amount, 3) }} LYD</td>
+                    <td><span class="badge badge-{{ $txn->status === 'completed' ? 'success' : 'primary' }}">{{ ucfirst($txn->status) }}</span></td>
+                    <td class="text-muted">{{ $txn->created_at->diffForHumans() }}</td>
                 </tr>
+                @empty
                 <tr>
-                    <td class="font-semibold">TXN-20261006-002</td>
-                    <td>Voucher Batch Gen</td>
-                    <td>0.000 LYD</td>
-                    <td><span class="badge badge-primary">Completed</span></td>
-                    <td class="text-muted">1 hour ago</td>
+                    <td colspan="5" class="text-center text-muted">No recent transactions.</td>
                 </tr>
+                @endforelse
             </tbody>
         </table>
     </div>

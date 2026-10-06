@@ -14,9 +14,18 @@ use Illuminate\Support\Str;
 
 class ResellerVoucherController extends Controller
 {
+    public function inventoryIndex()
+    {
+        $vouchers = Voucher::with('plan')
+            ->where('sold_by', Auth::id())
+            ->where('status', 'reserved') // reserved means bought by reseller but not yet sold/redeemed
+            ->paginate(20);
+            
+        return view('reseller.vouchers.inventory', compact('vouchers'));
+    }
     public function buyIndex()
     {
-        // Get available vouchers grouped by plan
+        // Get available vouchers grouped by plan without caching the counts
         $availablePlans = VoucherPlan::where('is_active', true)
             ->withCount(['vouchers' => function ($query) {
                 $query->where('status', 'available');
@@ -33,7 +42,7 @@ class ResellerVoucherController extends Controller
     {
         $validated = $request->validate([
             'voucher_plan_id' => 'required|exists:voucher_plans,id',
-            'quantity'        => 'required|integer|min:1',
+            'quantity'        => 'required|integer|min:1|max:1000',
         ]);
 
         $reseller = Auth::user();
@@ -42,12 +51,19 @@ class ResellerVoucherController extends Controller
         
         $totalCost = $plan->reseller_price_lyd * $quantity;
 
-        if ($reseller->getWalletBalance() < $totalCost) {
-            return back()->with('error', 'Insufficient wallet balance.');
-        }
-
         try {
             DB::beginTransaction();
+
+            // Lock the reseller profile to prevent double-spending
+            $profile = $reseller->resellerProfile()->lockForUpdate()->first();
+            
+            if (!$profile) {
+                throw new \Exception('Reseller profile not found.');
+            }
+
+            if ($profile->wallet_balance < $totalCost) {
+                throw new \Exception('Insufficient wallet balance.');
+            }
 
             // Lock vouchers to prevent race conditions
             $vouchers = Voucher::where('voucher_plan_id', $plan->id)
@@ -67,9 +83,9 @@ class ResellerVoucherController extends Controller
                 'sold_by' => $reseller->id,
             ]);
 
-            // Deduct from wallet
-            $newBalance = $reseller->resellerProfile->wallet_balance - $totalCost;
-            $reseller->resellerProfile->update(['wallet_balance' => $newBalance]);
+            // Deduct from wallet safely
+            $newBalance = $profile->wallet_balance - $totalCost;
+            $profile->update(['wallet_balance' => $newBalance]);
 
             // Create Transaction
             $reference = 'TXN-' . date('Ymd') . '-' . strtoupper(Str::random(5));

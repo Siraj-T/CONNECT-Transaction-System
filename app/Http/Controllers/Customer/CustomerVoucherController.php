@@ -12,6 +12,15 @@ use Illuminate\Support\Str;
 
 class CustomerVoucherController extends Controller
 {
+    public function historyIndex()
+    {
+        $vouchers = Voucher::with('plan')
+            ->where('redeemed_by', Auth::id())
+            ->orderByDesc('redeemed_at')
+            ->paginate(20);
+            
+        return view('customer.vouchers.history', compact('vouchers'));
+    }
     public function redeemIndex()
     {
         return view('customer.vouchers.redeem');
@@ -47,12 +56,28 @@ class CustomerVoucherController extends Controller
             // Update voucher
             $voucher->update([
                 'status'      => 'redeemed',
+                'sold_to'     => $customer->id,
                 'redeemed_by' => $customer->id,
                 'redeemed_at' => $now,
                 'expires_at'  => $expiresAt,
             ]);
 
-            // Track redemption in transactions
+            // If this was a reseller's voucher, log a sale for the reseller
+            if ($voucher->sold_by) {
+                $saleRef = 'SALE-' . date('Ymd') . '-' . strtoupper(Str::random(5));
+                Transaction::create([
+                    'reference_no'   => $saleRef,
+                    'type'           => 'sale',
+                    'status'         => 'completed',
+                    'user_id'        => $voucher->sold_by,
+                    'counterpart_id' => $customer->id,
+                    'total_amount'   => $voucher->plan->retail_price_lyd ?? 0.00,
+                    'notes'          => "Customer redeemed voucher: {$voucher->plan->name}",
+                    'metadata'       => ['voucher_id' => $voucher->id],
+                ]);
+            }
+
+            // Track redemption in transactions (for the customer)
             $reference = 'TXN-' . date('Ymd') . '-' . strtoupper(Str::random(5));
             Transaction::create([
                 'reference_no' => $reference,

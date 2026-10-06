@@ -95,19 +95,23 @@ class UserController extends Controller
 
         $user->syncRoles([$validated['role']]);
 
-        // Note: For a production app, handling role switching profiles is complex.
-        // Assuming we just update existing profile if it matches the current role.
-        if ($validated['role'] === 'reseller' && $user->resellerProfile) {
-            $user->resellerProfile->update([
-                'business_name'   => $request->input('business_name'),
-                'commission_rate' => $request->input('commission_rate'),
-                'is_approved'     => $request->has('is_approved'),
-            ]);
-        } elseif ($validated['role'] === 'customer' && $user->customerProfile) {
-            $user->customerProfile->update([
-                'national_id' => $request->input('national_id'),
-                'address'     => $request->input('address'),
-            ]);
+        if ($validated['role'] === 'reseller') {
+            $user->resellerProfile()->updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'business_name'   => $request->input('business_name'),
+                    'commission_rate' => $request->input('commission_rate', 5.00),
+                    'is_approved'     => $request->has('is_approved'),
+                ]
+            );
+        } elseif ($validated['role'] === 'customer') {
+            $user->customerProfile()->updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'national_id' => $request->input('national_id'),
+                    'address'     => $request->input('address'),
+                ]
+            );
         }
 
         return redirect()->route('admin.users.index')->with('success', 'User updated successfully.');
@@ -117,6 +121,18 @@ class UserController extends Controller
     {
         if ($user->id === Auth::id()) {
             return back()->with('error', 'Cannot delete yourself.');
+        }
+
+        // Check for dependencies to avoid SQL Integrity Constraint Exception
+        if ($user->transactions()->exists() || 
+            $user->walletLedger()->exists() || 
+            $user->generatedVouchers()->exists() || 
+            $user->soldVouchers()->exists() || 
+            $user->redeemedVouchers()->exists()) {
+            
+            // Soft-disable the user instead of deleting
+            $user->update(['is_active' => false]);
+            return redirect()->route('admin.users.index')->with('success', "User has related financial records and cannot be deleted. The account has been deactivated instead.");
         }
 
         $user->delete();
