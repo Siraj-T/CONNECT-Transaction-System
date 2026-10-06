@@ -27,7 +27,7 @@
                 @if(Auth::user()->hasRole('admin'))
                     <div class="text-xs font-semibold text-muted mb-2 px-3 mt-4">ADMIN</div>
                     <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">Dashboard</a>
-                    <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">Users & Roles</a>
+                    <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">Users Management</a>
                     <a href="{{ route('admin.voucher-plans.index') }}" class="nav-link {{ request()->routeIs('admin.voucher-plans.*') ? 'active' : '' }}">Voucher Plans</a>
                     <a href="{{ route('admin.vouchers.index') }}" class="nav-link {{ request()->routeIs('admin.vouchers.*') ? 'active' : '' }}">Vouchers</a>
                     <a href="{{ route('admin.transactions.index') }}" class="nav-link {{ request()->routeIs('admin.transactions.*') ? 'active' : '' }}">Transactions</a>
