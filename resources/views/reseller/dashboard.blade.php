@@ -4,7 +4,7 @@
 @section('content')
 <div class="page-header">
     <h1 class="page-title">Reseller Portal</h1>
-    <button class="btn btn-primary">Buy Vouchers</button>
+    <a href="{{ route('reseller.vouchers.buy') }}" class="btn btn-primary">Buy Vouchers</a>
 </div>
 
 <div class="grid md:grid-cols-2 gap-6 mb-6">

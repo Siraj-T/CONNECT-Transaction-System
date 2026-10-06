@@ -4,7 +4,7 @@
 @section('content')
 <div class="page-header">
     <h1 class="page-title">My Account</h1>
-    <button class="btn btn-primary">Redeem Voucher</button>
+    <a href="{{ route('customer.vouchers.redeem') }}" class="btn btn-primary">Redeem Voucher</a>
 </div>
 
 <div class="card mb-6">
