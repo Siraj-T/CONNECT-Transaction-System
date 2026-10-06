@@ -87,27 +87,53 @@ a:hover {
     flex-direction: column;
     position: fixed;
     height: 100vh;
-    z-index: 10;
+    z-index: 40;
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.sidebar.sidebar-collapsed {
+    transform: translateX(-100%);
 }
 
 .main-content {
     flex: 1;
     margin-left: 260px;
-    padding: 40px 56px;
+    padding: 24px 56px 40px;
     max-width: 1200px;
+    transition: margin-left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.main-content.sidebar-collapsed {
+    margin-left: 0;
+}
+
+/* Burger Button */
+.burger-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    border: none;
+    color: var(--color-text-main);
+    cursor: pointer;
+    margin-bottom: 24px;
+    transition: background-color 0.2s ease;
+}
+.burger-btn:hover {
+    background-color: rgba(0, 0, 0, 0.05);
 }
 
 /* Components */
 .brand {
     font-size: 22px;
-    font-weight: 600;
-    letter-spacing: -0.01em; /* Optical tracking */
+    font-weight: 700;
+    letter-spacing: -0.01em;
     color: var(--color-text-main);
     margin-bottom: 40px;
     padding: 0 12px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
 }
 
 .nav-link {
@@ -130,6 +156,46 @@ a:hover {
     background-color: var(--color-primary);
     color: var(--color-text-inverse);
     box-shadow: 0 2px 6px rgba(0, 113, 227, 0.3);
+}
+
+.sidebar-bottom {
+    margin-top: auto;
+    padding-top: 24px;
+    border-top: 1px solid var(--color-border);
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    transition: background-color 0.2s ease;
+}
+
+.user-profile:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.logout-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 14px;
+    margin-top: 8px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background: transparent;
+    color: var(--color-danger);
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.logout-btn:hover {
+    background-color: rgba(255, 59, 48, 0.1);
 }
 
 .card {
