@@ -324,3 +324,53 @@ tr:hover td {
     }
 }
 
+/* Pagination Custom Styles */
+.apple-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    margin-top: 16px;
+    border-top: 1px solid var(--color-border);
+}
+.pagination-numbers {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.pagination-number, .pagination-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-main);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+.pagination-link svg {
+    width: 18px;
+    height: 18px;
+}
+.pagination-number:hover, .pagination-link:hover:not(.disabled) {
+    background-color: var(--color-surface);
+    color: var(--color-primary);
+}
+.pagination-number.active {
+    background-color: var(--color-primary);
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 113, 227, 0.3);
+}
+.pagination-link.disabled {
+    color: var(--color-border);
+    cursor: not-allowed;
+}
+.pagination-dots {
+    color: var(--color-text-muted);
+    padding: 0 8px;
+}

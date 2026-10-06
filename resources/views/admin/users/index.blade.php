@@ -60,7 +60,7 @@
         </table>
     </div>
     <div style="margin-top: 16px;">
-        {{ $users->links() }}
+        {{ $users->links('pagination.apple') }}
     </div>
 </div>
 @endsection

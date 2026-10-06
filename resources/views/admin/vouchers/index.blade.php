@@ -44,8 +44,8 @@
     </div>
     
     @if($vouchers->hasPages())
-        <div style="margin-top: 20px;">
-            {{ $vouchers->links() }}
+        <div style="padding: 16px 20px;">
+            {{ $vouchers->links('pagination.apple') }}
         </div>
     @endif
 </div>

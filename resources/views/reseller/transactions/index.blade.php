@@ -40,7 +40,7 @@
     
     @if($transactions->hasPages())
         <div style="margin-top: 20px;">
-            {{ $transactions->links() }}
+            {{ $transactions->links('pagination.apple') }}
         </div>
     @endif
 </div>
