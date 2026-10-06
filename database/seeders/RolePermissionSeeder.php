@@ -74,7 +74,7 @@ class RolePermissionSeeder extends Seeder
 
         // Create default admin user
         $admin = User::create([
-            'name' => 'Super Admin',
+            'name' => 'Admin',
             'email' => 'admin@connect.ly',
             'password' => Hash::make('password'),
             'email_verified_at' => now(),

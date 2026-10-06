@@ -47,10 +47,15 @@
 
             <div style="margin-top: auto; padding-top: 24px; border-top: 1px solid var(--color-border);">
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 0 12px;">
-                    <img src="{{ Auth::user()->avatar_url }}" alt="Avatar" style="width: 36px; height: 36px; border-radius: 50%;">
+                    <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--color-surface); border: 1px solid var(--color-border); display: flex; justify-content: center; align-items: center;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-text-muted);">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </div>
                     <div>
                         <div style="font-size: 14px; font-weight: 500;">{{ Auth::user()->name }}</div>
-                        <div style="font-size: 12px; color: var(--color-text-muted);">{{ Auth::user()->roles->first()->name ?? 'User' }}</div>
+                        <div style="font-size: 12px; color: var(--color-text-muted);">{{ ucfirst(Auth::user()->roles->first()->name ?? 'User') }}</div>
                     </div>
                 </div>
                 
