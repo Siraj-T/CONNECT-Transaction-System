@@ -1,58 +1,92 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# CONNECT Transaction System
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+![CONNECT Transaction System](https://img.shields.io/badge/Laravel-11.x-FF2D20?style=for-the-badge&logo=laravel)
+![PHP](https://img.shields.io/badge/PHP-8.2+-777BB4?style=for-the-badge&logo=php)
+![MySQL](https://img.shields.io/badge/MySQL-8.0+-4479A1?style=for-the-badge&logo=mysql)
 
-## About Laravel
+CONNECT is a comprehensive **ISP Voucher & Reseller Management System** designed to handle the generation, distribution, and redemption of internet data vouchers. 
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+The system features an Apple-inspired UI design language (translucency, fluid animations, and modern typography) and provides a secure, role-based ecosystem for Administrators, Resellers, and end Customers.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 🌟 Key Features
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### 1. Role-Based Access Control (RBAC)
+- **Administrator:** Full system control. Can generate bulk vouchers, create/manage voucher plans (data limits, duration, pricing), manage users, and view the global transaction ledger.
+- **Reseller:** B2B partners who purchase vouchers in bulk using a wallet ledger system at a commission discount, and manage their own local inventory to sell to end-users.
+- **Customer:** End-users who can register, log in, and securely redeem purchased 12-digit PIN codes to their accounts.
 
-## Learning Laravel
+### 2. Secure Financial Ledger
+- **Wallet System:** Resellers have wallets that track their balance.
+- **Immutable Transactions:** Every voucher purchase and redemption is logged in an immutable, append-only transaction ledger to ensure exact financial tracking.
+- **Race-Condition Protection:** Database row-locking (`lockForUpdate`) ensures that high-concurrency voucher purchases do not result in stock overselling.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### 3. Beautiful UI/UX
+- **Apple-Inspired Aesthetics:** Uses glassmorphism, responsive collapsible sidebars, custom SVG iconography, and deep dark-mode ready color palettes.
+- **Custom Pagination:** Clean, modern pagination controls built from scratch without relying on heavy external CSS frameworks.
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## 🚀 Tech Stack
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+- **Backend:** Laravel 11 (PHP 8.2+)
+- **Frontend:** Laravel Blade, Vite, Vanilla CSS (Custom Design System)
+- **Database:** MySQL
+- **Auth & Roles:** Laravel Breeze, Spatie Laravel-Permission
 
-## Agentic Development
+## 🛠️ Installation & Setup
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Follow these steps to set up the project locally:
 
-```bash
-composer require laravel/boost --dev
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/Siraj-T/CONNECT-Transaction-System.git
+   cd CONNECT-Transaction-System
+   ```
 
-php artisan boost:install
-```
+2. **Install PHP dependencies:**
+   ```bash
+   composer install
+   ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+3. **Install NPM dependencies:**
+   ```bash
+   npm install
+   ```
 
-## Contributing
+4. **Environment Setup:**
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
+   *Edit the `.env` file to include your local database credentials.*
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+5. **Database Migration & Seeding:**
+   This will build the database schema and populate it with the default roles, a voucher plan, and test users.
+   ```bash
+   php artisan migrate --seed
+   ```
 
-## Code of Conduct
+6. **Compile Frontend Assets:**
+   ```bash
+   npm run build
+   ```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+7. **Run the Development Server:**
+   ```bash
+   php artisan serve
+   ```
 
-## Security Vulnerabilities
+## 🔑 Default Test Accounts
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+If you ran the seeder (`php artisan migrate --seed`), the following accounts are available for testing. *The password for all test accounts is `password`.*
 
-## License
+| Role       | Email                   | Password |
+|------------|-------------------------|----------|
+| **Admin**  | `admin@connect.local`   | password |
+| **Reseller**| `reseller@connect.local`| password |
+| **Customer**| `customer@connect.local`| password |
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## 🛡️ Security
+
+If you discover any security-related issues, please do not use the issue tracker. Instead, contact the repository owner directly. Transactions and Vouchers are designed as immutable ledgers; manual deletion or editing of financial history is restricted by design to prevent fraud.
+
+---
+*Designed and built for modern ISP voucher management.*
