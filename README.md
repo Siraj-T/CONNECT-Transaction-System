@@ -1,33 +1,34 @@
-# CONNECT Transaction System
+# CONNECT Financial Transaction System
 
 ![CONNECT Transaction System](https://img.shields.io/badge/Laravel-11.x-FF2D20?style=for-the-badge&logo=laravel)
 ![PHP](https://img.shields.io/badge/PHP-8.2+-777BB4?style=for-the-badge&logo=php)
 ![MySQL](https://img.shields.io/badge/MySQL-8.0+-4479A1?style=for-the-badge&logo=mysql)
 
-CONNECT is a comprehensive **ISP Voucher & Reseller Management System** designed to handle the generation, distribution, and redemption of internet data vouchers. 
+CONNECT is a centralized **Financial Transaction System** designed to securely handle and approve user-initiated transactions.
 
-The system features an Apple-inspired UI design language (translucency, fluid animations, and modern typography) and provides a secure, role-based ecosystem for Administrators, Resellers, and end Customers.
+The system provides a secure API for "Citizens" to submit financial transaction requests, and a beautiful Apple-inspired UI dashboard for Administrators to review, accept, or reject them.
 
 ## 🌟 Key Features
 
-### 1. Role-Based Access Control (RBAC)
-- **Administrator:** Full system control. Can generate bulk vouchers, create/manage voucher plans (data limits, duration, pricing), manage users, and view the global transaction ledger.
-- **Reseller:** B2B partners who purchase vouchers in bulk using a wallet ledger system at a commission discount, and manage their own local inventory to sell to end-users.
-- **Customer:** End-users who can register, log in, and securely redeem purchased 12-digit PIN codes to their accounts.
+### 1. API-First Citizen Experience
+- **Citizens:** Submit transactions through a secure REST API (perfect for testing via Postman or integrating into mobile apps).
+- **Transaction Details:** Captures essential details including sender name, phone number, and transaction amount.
+- **Unique Reference Number:** Every transaction is assigned a unique, trackable reference number upon creation.
 
-### 2. Secure Financial Ledger
-- **Wallet System:** Resellers have wallets that track their balance.
-- **Immutable Transactions:** Every voucher purchase and redemption is logged in an immutable, append-only transaction ledger to ensure exact financial tracking.
-- **Race-Condition Protection:** Database row-locking (`lockForUpdate`) ensures that high-concurrency voucher purchases do not result in stock overselling.
+### 2. Administrator Dashboard
+- **Admin Control:** Administrators log into a secure UI dashboard to monitor all incoming transactions.
+- **Approval Workflow:** Admins can easily "Accept" or "Reject" pending transactions.
+- **Transaction Ledger:** Clear view of transaction statuses (Pending, Accepted, Rejected) with an immutable history.
 
-### 3. Beautiful UI/UX
+### 3. Beautiful UI/UX (Admin Panel)
 - **Apple-Inspired Aesthetics:** Uses glassmorphism, responsive collapsible sidebars, custom SVG iconography, and deep dark-mode ready color palettes.
 - **Custom Pagination:** Clean, modern pagination controls built from scratch without relying on heavy external CSS frameworks.
 
 ## 🚀 Tech Stack
 
 - **Backend:** Laravel 11 (PHP 8.2+)
-- **Frontend:** Laravel Blade, Vite, Vanilla CSS (Custom Design System)
+- **Frontend (Admin):** Laravel Blade, Vite, Vanilla CSS (Custom Design System)
+- **API (Citizen):** RESTful JSON API
 - **Database:** MySQL
 - **Auth & Roles:** Laravel Breeze, Spatie Laravel-Permission
 
@@ -59,9 +60,9 @@ Follow these steps to set up the project locally:
    *Edit the `.env` file to include your local database credentials.*
 
 5. **Database Migration & Seeding:**
-   This will build the database schema and populate it with the default roles, a voucher plan, and test users.
+   This will build the database schema and populate it with the default admin role and test users.
    ```bash
-   php artisan migrate --seed
+   php artisan migrate:fresh --seed
    ```
 
 6. **Compile Frontend Assets:**
@@ -76,17 +77,30 @@ Follow these steps to set up the project locally:
 
 ## 🔑 Default Test Accounts
 
-If you ran the seeder (`php artisan migrate --seed`), the following accounts are available for testing. *The password for all test accounts is `password`.*
+If you ran the seeder (`php artisan migrate:fresh --seed`), the following account is available for testing the Admin Dashboard. *The password is `password`.*
 
 | Role       | Email                   | Password |
 |------------|-------------------------|----------|
 | **Admin**  | `admin@connect.local`   | password |
-| **Reseller**| `reseller@connect.local`| password |
-| **Customer**| `customer@connect.local`| password |
+
+## 📡 API Testing (Postman)
+
+To submit a transaction as a Citizen, use Postman:
+
+**Endpoint:** `POST http://localhost:8000/api/transactions`
+**Headers:** `Accept: application/json`
+**Body (JSON):**
+```json
+{
+    "sender_name": "John Doe",
+    "sender_phone": "+1234567890",
+    "amount": 150.00
+}
+```
 
 ## 🛡️ Security
 
-If you discover any security-related issues, please do not use the issue tracker. Instead, contact the repository owner directly. Transactions and Vouchers are designed as immutable ledgers; manual deletion or editing of financial history is restricted by design to prevent fraud.
+If you discover any security-related issues, please do not use the issue tracker. Instead, contact the repository owner directly.
 
 ---
-*Designed and built for modern ISP voucher management.*
+*Designed and built for modern financial transaction management.*

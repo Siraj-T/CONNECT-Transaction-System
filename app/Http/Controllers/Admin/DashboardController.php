@@ -3,9 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Models\Transaction;
-use App\Models\Voucher;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -13,26 +11,34 @@ class DashboardController extends Controller
     public function index()
     {
         // Compute real metrics
-        $totalRevenue = Transaction::where('status', 'completed')
-                                    ->where('type', 'purchase')
-                                    ->sum('total_amount');
-                                    
-        $activeResellers = User::role('reseller')->where('is_active', true)->count();
+        $totalRevenue = Transaction::where('status', 'accepted')->sum('amount');
         
-        $vouchersSoldToday = Voucher::where('status', 'sold')
-                                    ->whereDate('sold_at', today())
-                                    ->count();
+        $pendingTransactions = Transaction::where('status', 'pending')->count();
+        $acceptedTransactions = Transaction::where('status', 'accepted')->count();
+        $rejectedTransactions = Transaction::where('status', 'rejected')->count();
                                     
-        $recentTransactions = Transaction::with('user')
-                                         ->orderByDesc('created_at')
-                                         ->limit(5)
-                                         ->get();
+        $recentTransactions = Transaction::orderByDesc('created_at')->paginate(15);
                                          
         return view('admin.dashboard', compact(
             'totalRevenue', 
-            'activeResellers', 
-            'vouchersSoldToday', 
+            'pendingTransactions', 
+            'acceptedTransactions', 
+            'rejectedTransactions',
             'recentTransactions'
         ));
+    }
+
+    public function updateStatus(Request $request, Transaction $transaction)
+    {
+        $validated = $request->validate([
+            'action' => 'required|in:accept,reject'
+        ]);
+
+        $transaction->update([
+            'status' => $validated['action'] === 'accept' ? 'accepted' : 'rejected',
+            'admin_id' => auth()->id()
+        ]);
+
+        return redirect()->back()->with('success', "Transaction {$transaction->status} successfully.");
     }
 }
