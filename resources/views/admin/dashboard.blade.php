@@ -104,6 +104,7 @@
                                 <th>Reference</th>
                                 <th>Sender Name</th>
                                 <th>Phone</th>
+                                <th>Payment Method</th>
                                 <th>Amount</th>
                                 <th>Status</th>
                                 <th>Date</th>
@@ -114,8 +115,13 @@
                             @forelse($recentTransactions as $txn)
                             <tr>
                                 <td class="font-semibold">{{ $txn->unique_reference_number }}</td>
-                                <td>{{ $txn->sender_name }}</td>
-                                <td>{{ $txn->sender_phone }}</td>
+                                <td>{{ $txn->citizen->name }}</td>
+                                <td>{{ $txn->citizen->phone_number }}</td>
+                                <td>
+                                    <span class="badge" style="background: #eef2f7; color: #475569;">
+                                        {{ $txn->paymentMethod->name }}
+                                    </span>
+                                </td>
                                 <td class="font-bold">${{ number_format($txn->amount, 2) }}</td>
                                 <td>
                                     <span class="badge badge-{{ $txn->status === 'accepted' ? 'success' : ($txn->status === 'rejected' ? 'danger' : 'primary') }}">
@@ -144,7 +150,7 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-8">No transactions found.</td>
+                                <td colspan="8" class="text-center text-muted py-8">No transactions found.</td>
                             </tr>
                             @endforelse
                         </tbody>

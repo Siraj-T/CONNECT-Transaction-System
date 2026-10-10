@@ -2,20 +2,17 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Transaction extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
         'unique_reference_number',
-        'sender_name',
-        'sender_phone',
         'amount',
         'status',
+        'citizen_id',
+        'payment_method_id',
         'admin_id',
     ];
 
@@ -24,6 +21,16 @@ class Transaction extends Model
         return [
             'amount' => 'decimal:2',
         ];
+    }
+
+    public function citizen(): BelongsTo
+    {
+        return $this->belongsTo(Citizen::class);
+    }
+
+    public function paymentMethod(): BelongsTo
+    {
+        return $this->belongsTo(PaymentMethod::class);
     }
 
     public function admin(): BelongsTo

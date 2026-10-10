@@ -18,7 +18,9 @@ class DashboardController extends Controller
         $acceptedTransactions = Transaction::where('status', 'accepted')->count();
         $rejectedTransactions = Transaction::where('status', 'rejected')->count();
                                     
-        $recentTransactions = Transaction::orderByDesc('created_at')->paginate(15);
+        $recentTransactions = Transaction::with(['citizen', 'paymentMethod'])
+            ->orderByDesc('created_at')
+            ->paginate(15);
                                          
         return view('admin.dashboard', compact(
             'totalRevenue', 

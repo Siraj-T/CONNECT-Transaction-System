@@ -18,5 +18,11 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RolePermissionSeeder::class,
         ]);
+
+        \App\Models\PaymentMethod::insert([
+            ['name' => 'Credit Card', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['name' => 'Bank Transfer', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['name' => 'PayPal', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+        ]);
     }
 }
