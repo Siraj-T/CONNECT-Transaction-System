@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ config('app.name', 'CONNECT') }} - @yield('title')</title>
+    <title>{{ config('app.name', 'Financial Transaction System') }} - @yield('title')</title>
 
     <!-- Styles and Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -15,7 +15,7 @@
         <!-- Sidebar Navigation -->
         <aside class="sidebar" id="sidebar">
             <div class="brand">
-                CONNECT
+                FINANCIAL TRANSACTIONS
             </div>
 
             <nav>

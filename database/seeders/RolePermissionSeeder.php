@@ -40,7 +40,7 @@ class RolePermissionSeeder extends Seeder
         // Create default admin user
         $admin = User::create([
             'name' => 'Admin',
-            'email' => 'admin@connect.local',
+            'email' => 'admin@financial-transaction-system.local',
             'password' => Hash::make('password'),
             'email_verified_at' => now(),
         ]);

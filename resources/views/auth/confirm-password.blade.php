@@ -4,7 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
-        <title>{{ config('app.name', 'CONNECT') }} - Auth</title>
+        <title>{{ config('app.name', 'Financial Transaction System') }} - Auth</title>
         @vite(['resources/css/app.css'])
         <style>
             .guest-wrapper { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: var(--color-bg); background-image: radial-gradient(at 0% 0%, hsla(210, 100%, 85%, 1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(220, 100%, 90%, 1) 0, transparent 50%), radial-gradient(at 100% 0%, hsla(210, 100%, 85%, 1) 0, transparent 50%); background-size: cover; position: relative; overflow: hidden; padding: 40px 0; }
@@ -16,7 +16,7 @@
     <body>
         <div class="guest-wrapper">
             <div class="guest-card">
-                <div class="guest-logo">CONNECT</div>
+                <div class="guest-logo">FINANCIAL TRANSACTIONS</div>
     <div class="mb-4 text-sm text-gray-600">
         {{ __('This is a secure area of the application. Please confirm your password before continuing.') }}
     </div>

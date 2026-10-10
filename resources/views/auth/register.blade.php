@@ -4,7 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
-        <title>{{ config('app.name', 'CONNECT') }} - Register</title>
+        <title>{{ config('app.name', 'Financial Transaction System') }} - Register</title>
         @vite(['resources/css/app.css'])
         <style>
             .guest-wrapper {
@@ -26,7 +26,7 @@
     <body>
         <div class="guest-wrapper">
             <div class="guest-card">
-                <div class="guest-logo">CONNECT</div>
+                <div class="guest-logo">FINANCIAL TRANSACTIONS</div>
     <form method="POST" action="{{ route('register') }}">
         @csrf
 

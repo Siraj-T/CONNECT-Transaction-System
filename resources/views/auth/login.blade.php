@@ -4,7 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
-        <title>{{ config('app.name', 'CONNECT') }} - Login</title>
+        <title>{{ config('app.name', 'Financial Transaction System') }} - Login</title>
         @vite(['resources/css/app.css'])
         <style>
             .guest-wrapper {
@@ -26,7 +26,7 @@
     <body>
         <div class="guest-wrapper">
             <div class="guest-card">
-                <div class="guest-logo">CONNECT</div>
+                <div class="guest-logo">FINANCIAL TRANSACTIONS</div>
     <!-- Session Status -->
     <x-auth-session-status class="mb-4" :status="session('status')" />
 
@@ -36,7 +36,7 @@
         <!-- Email Address -->
         <div class="form-group mb-4">
             <label for="email" class="form-label">{{ __('Email Address') }}</label>
-            <input id="email" class="form-input" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username" placeholder="admin@connect.ly" />
+            <input id="email" class="form-input" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username" placeholder="admin@financial-transaction-system.local" />
             <x-input-error :messages="$errors->get('email')" class="mt-2 text-danger text-sm" />
         </div>
 
