@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
@@ -16,7 +16,7 @@ class AuthController extends Controller
      */
     public function showLogin(): View
     {
-        return view('admin.login');
+        return view('auth.login');
     }
 
     /**
