@@ -28,7 +28,11 @@
             <div class="guest-card">
                 <div class="guest-logo">FINANCIAL TRANSACTIONS</div>
     <!-- Session Status -->
-    <x-auth-session-status class="mb-4" :status="session('status')" />
+    @if (session('status'))
+        <div class="mb-4 font-medium text-sm text-green-600">
+            {{ session('status') }}
+        </div>
+    @endif
 
     <form method="POST" action="{{ route('login') }}">
         @csrf
@@ -37,14 +41,26 @@
         <div class="form-group mb-4">
             <label for="email" class="form-label">{{ __('Email Address') }}</label>
             <input id="email" class="form-input" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username" placeholder="admin@financial-transaction-system.local" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2 text-danger text-sm" />
+            @if ($errors->has('email'))
+                <div class="mt-2 text-danger text-sm">
+                    @foreach ((array) $errors->get('email') as $message)
+                        <p>{{ $message }}</p>
+                    @endforeach
+                </div>
+            @endif
         </div>
 
         <!-- Password -->
         <div class="form-group mb-4">
             <label for="password" class="form-label">{{ __('Password') }}</label>
             <input id="password" class="form-input" type="password" name="password" required autocomplete="current-password" placeholder="••••••••" />
-            <x-input-error :messages="$errors->get('password')" class="mt-2 text-danger text-sm" />
+            @if ($errors->has('password'))
+                <div class="mt-2 text-danger text-sm">
+                    @foreach ((array) $errors->get('password') as $message)
+                        <p>{{ $message }}</p>
+                    @endforeach
+                </div>
+            @endif
         </div>
 
         <!-- Remember Me & Forgot Password -->
