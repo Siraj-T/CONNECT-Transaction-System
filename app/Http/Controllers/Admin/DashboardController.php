@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Transaction;
+use App\Models\AuditLog;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -34,9 +35,18 @@ class DashboardController extends Controller
             'action' => 'required|in:accept,reject'
         ]);
 
+        $status = $validated['action'] === 'accept' ? 'accepted' : 'rejected';
+
         $transaction->update([
-            'status' => $validated['action'] === 'accept' ? 'accepted' : 'rejected',
+            'status' => $status,
             'admin_id' => auth()->id()
+        ]);
+
+        AuditLog::create([
+            'admin_id' => auth()->id(),
+            'action' => $status . '_transaction',
+            'reference_number' => $transaction->unique_reference_number,
+            'details' => "Transaction {$transaction->unique_reference_number} was {$status}."
         ]);
 
         return redirect()->back()->with('success', "Transaction {$transaction->status} successfully.");

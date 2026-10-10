@@ -1,10 +1,10 @@
-# CONNECT Financial Transaction System
+# Financial Transaction System Financial Transaction System
 
-![CONNECT Transaction System](https://img.shields.io/badge/Laravel-11.x-FF2D20?style=for-the-badge&logo=laravel)
+![Financial Transaction System Transaction System](https://img.shields.io/badge/Laravel-11.x-FF2D20?style=for-the-badge&logo=laravel)
 ![PHP](https://img.shields.io/badge/PHP-8.2+-777BB4?style=for-the-badge&logo=php)
 ![MySQL](https://img.shields.io/badge/MySQL-8.0+-4479A1?style=for-the-badge&logo=mysql)
 
-CONNECT is a centralized **Financial Transaction System** designed to securely handle and approve user-initiated transactions.
+Financial Transaction System is a centralized **Financial Transaction System** designed to securely handle and approve user-initiated transactions.
 
 The system provides a secure API for "Citizens" to submit financial transaction requests, and a beautiful Apple-inspired UI dashboard for Administrators to review, accept, or reject them.
 
@@ -38,8 +38,8 @@ Follow these steps to set up the project locally:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/Siraj-T/CONNECT-Transaction-System.git
-   cd CONNECT-Transaction-System
+   git clone https://github.com/Siraj-T/Financial Transaction System-Transaction-System.git
+   cd Financial Transaction System-Transaction-System
    ```
 
 2. **Install PHP dependencies:**
@@ -81,7 +81,7 @@ If you ran the seeder (`php artisan migrate:fresh --seed`), the following accoun
 
 | Role       | Email                   | Password |
 |------------|-------------------------|----------|
-| **Admin**  | `admin@connect.local`   | password |
+| **Admin**  | `admin@Financial Transaction System.local`   | password |
 
 ## 📡 API Testing (Postman)
 
