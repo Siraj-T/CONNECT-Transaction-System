@@ -17,12 +17,15 @@ class RolePermissionSeeder extends Seeder
 
         // Define roles
         $adminRole = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $citizenRole = Role::firstOrCreate(['name' => 'citizen', 'guard_name' => 'web']);
+        $customerRole = Role::firstOrCreate(['name' => 'customer', 'guard_name' => 'web']);
 
         // Define permissions
         $permissions = [
             'transactions.view-all',
             'transactions.approve',
             'transactions.reject',
+            'transactions.create',
         ];
 
         foreach ($permissions as $permission) {
@@ -37,6 +40,10 @@ class RolePermissionSeeder extends Seeder
         ])->get();
         $adminRole->syncPermissions($adminPermissions);
 
+        // Assign create permission to citizen/customer
+        $citizenRole->syncPermissions(['transactions.create']);
+        $customerRole->syncPermissions(['transactions.create']);
+
         // Create default admin user
         $admin = User::firstOrCreate(
             ['email' => 'admin@admin.com'],
@@ -48,5 +55,39 @@ class RolePermissionSeeder extends Seeder
             ]
         );
         $admin->assignRole($adminRole);
+
+        // Create default citizen user (Jane Doe)
+        $citizen1 = User::firstOrCreate(
+            ['email' => 'citizen@citizen.com'],
+            [
+                'name' => 'Jane Doe',
+                'phone' => '+1987654321',
+                'password' => Hash::make('password'),
+                'email_verified_at' => now(),
+                'is_active' => true,
+            ]
+        );
+        $citizen1->syncRoles([$citizenRole, $customerRole]);
+        \App\Models\Citizen::updateOrCreate(
+            ['phone_number' => $citizen1->phone],
+            ['user_id' => $citizen1->id, 'name' => $citizen1->name]
+        );
+
+        // Create secondary citizen user (Ahmed Mohamed)
+        $citizen2 = User::firstOrCreate(
+            ['email' => 'ahmed@citizen.com'],
+            [
+                'name' => 'Ahmed Mohamed',
+                'phone' => '+1234567890',
+                'password' => Hash::make('password'),
+                'email_verified_at' => now(),
+                'is_active' => true,
+            ]
+        );
+        $citizen2->syncRoles([$citizenRole, $customerRole]);
+        \App\Models\Citizen::updateOrCreate(
+            ['phone_number' => $citizen2->phone],
+            ['user_id' => $citizen2->id, 'name' => $citizen2->name]
+        );
     }
 }
