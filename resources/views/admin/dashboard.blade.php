@@ -11,8 +11,17 @@
     <div class="app-container">
         <!-- Sidebar Navigation -->
         <aside class="sidebar" id="sidebar">
-            <div class="brand">
-                FINANCIAL TRANSACTIONS
+            <div class="sidebar-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; padding: 0 4px;">
+                <div class="brand" style="margin-bottom: 0; padding: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.01em;">
+                    FINANCIAL TRANSACTIONS
+                </div>
+                <button id="sidebarToggle" class="burger-btn" aria-label="Collapse Sidebar" title="Collapse Sidebar" style="margin-bottom: 0; width: 32px; height: 32px; flex-shrink: 0;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
             </div>
             <nav>
                 @if(Auth::user()->hasRole('admin'))
@@ -49,8 +58,8 @@
 
         <!-- Main Content -->
         <main class="main-content" id="main-content">
-            <button id="sidebarToggle" class="burger-btn" aria-label="Toggle Sidebar">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <button id="sidebarOpen" class="burger-btn" aria-label="Open Sidebar" title="Open Sidebar" style="display: none; position: fixed; top: 18px; left: 18px; z-index: 50; width: 38px; height: 38px; background: var(--color-surface); border: 1px solid var(--color-border); box-shadow: var(--shadow-sm); border-radius: var(--radius-sm);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="3" y1="12" x2="21" y2="12"></line>
                     <line x1="3" y1="6" x2="21" y2="6"></line>
                     <line x1="3" y1="18" x2="21" y2="18"></line>
@@ -187,10 +196,21 @@
     </div>
 
     <script>
-        document.getElementById('sidebarToggle').addEventListener('click', function() {
-            document.getElementById('sidebar').classList.toggle('sidebar-collapsed');
-            document.getElementById('main-content').classList.toggle('sidebar-collapsed');
-        });
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('main-content');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebarOpen = document.getElementById('sidebarOpen');
+
+        function toggleSidebar() {
+            const isCollapsed = sidebar.classList.toggle('sidebar-collapsed');
+            mainContent.classList.toggle('sidebar-collapsed', isCollapsed);
+            if (sidebarOpen) {
+                sidebarOpen.style.display = isCollapsed ? 'flex' : 'none';
+            }
+        }
+
+        if (sidebarToggle) sidebarToggle.addEventListener('click', toggleSidebar);
+        if (sidebarOpen) sidebarOpen.addEventListener('click', toggleSidebar);
     </script>
 </body>
 </html>
