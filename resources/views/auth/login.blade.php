@@ -40,7 +40,8 @@
         <!-- Email Address -->
         <div class="form-group mb-4">
             <label for="email" class="form-label">{{ __('Email Address') }}</label>
-            <input id="email" class="form-input" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username" placeholder="admin@financial-transaction-system.local" />
+            <input id="email" class="form-input" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username" placeholder="admin@admin.com" />
+            <small style="display: block; margin-top: 4px; font-size: 12px; color: var(--color-text-muted);">Default admin: <strong>admin@admin.com</strong></small>
             @if ($errors->has('email'))
                 <div class="mt-2 text-danger text-sm">
                     @foreach ((array) $errors->get('email') as $message)
