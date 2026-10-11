@@ -253,6 +253,55 @@ a:hover {
 }
 
 /* Buttons */
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+    background: transparent;
+}
+
+.action-btn:active {
+    transform: scale(0.92);
+}
+
+.action-btn-accept {
+    background: rgba(52, 199, 89, 0.12);
+    color: #28a745;
+    border-color: rgba(52, 199, 89, 0.25);
+}
+
+.action-btn-accept:hover {
+    background: #34C759;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(52, 199, 89, 0.35);
+    transform: translateY(-1px);
+}
+
+.action-btn-reject {
+    background: rgba(255, 59, 48, 0.12);
+    color: #dc3545;
+    border-color: rgba(255, 59, 48, 0.25);
+}
+
+.action-btn-reject:hover {
+    background: #FF3B30;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(255, 59, 48, 0.35);
+    transform: translateY(-1px);
+}
+
+.pagination-arrow-btn:not(.disabled):hover {
+    background: rgba(0, 0, 0, 0.05) !important;
+    color: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+}
+
 .btn {
     display: inline-flex;
     align-items: center;

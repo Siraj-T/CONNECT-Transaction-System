@@ -139,22 +139,33 @@
                                     </span>
                                 </td>
                                 <td class="text-muted">{{ $txn->created_at->format('M d, Y H:i') }}</td>
-                                <td class="text-right">
+                                <td class="text-right" style="white-space: nowrap;">
                                     @if($txn->status === 'pending')
-                                    <form action="{{ route('admin.transactions.status.update', $txn) }}" method="POST" class="inline-block m-0">
-                                        @csrf
-                                        @method('PUT')
-                                        <input type="hidden" name="action" value="accept">
-                                        <button type="submit" class="btn" style="padding: 0.25rem 0.75rem; font-size: 0.875rem; background: #2ecc71; color: white;">Accept</button>
-                                    </form>
-                                    <form action="{{ route('admin.transactions.status.update', $txn) }}" method="POST" class="inline-block m-0 ml-2">
-                                        @csrf
-                                        @method('PUT')
-                                        <input type="hidden" name="action" value="reject">
-                                        <button type="submit" class="btn" style="padding: 0.25rem 0.75rem; font-size: 0.875rem; background: #e74c3c; color: white;">Reject</button>
-                                    </form>
+                                    <div style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px;">
+                                        <form action="{{ route('admin.transactions.status.update', $txn) }}" method="POST" style="margin: 0; display: inline;">
+                                            @csrf
+                                            @method('PUT')
+                                            <input type="hidden" name="action" value="accept">
+                                            <button type="submit" class="action-btn action-btn-accept" title="Accept Transaction" aria-label="Accept Transaction">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                        <form action="{{ route('admin.transactions.status.update', $txn) }}" method="POST" style="margin: 0; display: inline;">
+                                            @csrf
+                                            @method('PUT')
+                                            <input type="hidden" name="action" value="reject">
+                                            <button type="submit" class="action-btn action-btn-reject" title="Reject Transaction" aria-label="Reject Transaction">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    </div>
                                     @else
-                                    <span class="text-muted text-sm">Processed</span>
+                                    <span class="text-muted text-sm" style="font-weight: 500;">Processed</span>
                                     @endif
                                 </td>
                             </tr>
@@ -167,30 +178,55 @@
                     </table>
                 </div>
                 
-                @if($recentTransactions->hasPages())
-                <div class="mt-6 flex items-center justify-between">
+                {{-- Always Visible Pagination with Arrows --}}
+                <div class="pagination-container" style="display: flex; align-items: center; justify-content: space-between; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--color-border); flex-wrap: wrap; gap: 12px;">
                     <div>
-                        <p class="text-sm text-gray-700 leading-5">
-                            Showing <span class="font-medium">{{ $recentTransactions->firstItem() }}</span> to <span class="font-medium">{{ $recentTransactions->lastItem() }}</span> of <span class="font-medium">{{ $recentTransactions->total() }}</span> results
+                        <p style="font-size: 13px; color: var(--color-text-muted); margin: 0;">
+                            Showing 
+                            <span style="font-weight: 600; color: var(--color-text-main);">{{ $recentTransactions->total() > 0 ? ($recentTransactions->firstItem() ?? 1) : 0 }}</span>
+                            to 
+                            <span style="font-weight: 600; color: var(--color-text-main);">{{ $recentTransactions->total() > 0 ? ($recentTransactions->lastItem() ?? 1) : 0 }}</span>
+                            of 
+                            <span style="font-weight: 600; color: var(--color-text-main);">{{ $recentTransactions->total() }}</span> results
                         </p>
                     </div>
-                    <div>
-                        <span class="relative z-0 inline-flex shadow-sm rounded-md">
-                            @if ($recentTransactions->onFirstPage())
-                                <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm leading-5 font-medium text-gray-500 cursor-default rounded-l-md">Previous</span>
-                            @else
-                                <a href="{{ $recentTransactions->previousPageUrl() }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm leading-5 font-medium text-gray-700 hover:text-gray-500 rounded-l-md">Previous</a>
-                            @endif
-            
-                            @if ($recentTransactions->hasMorePages())
-                                <a href="{{ $recentTransactions->nextPageUrl() }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm leading-5 font-medium text-gray-700 hover:text-gray-500 rounded-r-md">Next</a>
-                            @else
-                                <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm leading-5 font-medium text-gray-500 cursor-default rounded-r-md">Next</span>
-                            @endif
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        {{-- Previous Arrow Button --}}
+                        @if ($recentTransactions->onFirstPage())
+                            <span class="pagination-arrow-btn disabled" aria-disabled="true" title="Previous page" style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-muted); opacity: 0.4; cursor: not-allowed;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                </svg>
+                            </span>
+                        @else
+                            <a href="{{ $recentTransactions->previousPageUrl() }}" class="pagination-arrow-btn" title="Previous page" style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-main); text-decoration: none;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                </svg>
+                            </a>
+                        @endif
+
+                        {{-- Current Page Indicator --}}
+                        <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 34px; padding: 0 10px; border-radius: 8px; background: var(--color-primary); color: white; font-size: 13px; font-weight: 600;">
+                            {{ $recentTransactions->currentPage() }}
                         </span>
+
+                        {{-- Next Arrow Button --}}
+                        @if ($recentTransactions->hasMorePages())
+                            <a href="{{ $recentTransactions->nextPageUrl() }}" class="pagination-arrow-btn" title="Next page" style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-main); text-decoration: none;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </a>
+                        @else
+                            <span class="pagination-arrow-btn disabled" aria-disabled="true" title="Next page" style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-muted); opacity: 0.4; cursor: not-allowed;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </span>
+                        @endif
                     </div>
                 </div>
-                @endif
             </div>
 
         </main>
