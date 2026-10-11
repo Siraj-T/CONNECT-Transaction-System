@@ -82,17 +82,46 @@ a:hover {
     backdrop-filter: var(--backdrop-blur);
     -webkit-backdrop-filter: var(--backdrop-blur);
     border-right: 1px solid var(--color-border);
-    padding: 32px 16px;
+    padding: 28px 16px;
     display: flex;
     flex-direction: column;
     position: fixed;
     height: 100vh;
     z-index: 40;
-    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition: width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), padding 0.3s ease;
+    overflow-x: hidden;
 }
 
 .sidebar.sidebar-collapsed {
-    transform: translateX(-100%);
+    width: 76px;
+    padding: 28px 12px;
+}
+
+.sidebar.sidebar-collapsed .brand-text,
+.sidebar.sidebar-collapsed .sidebar-label,
+.sidebar.sidebar-collapsed .nav-text,
+.sidebar.sidebar-collapsed .user-details {
+    display: none !important;
+}
+
+.sidebar.sidebar-collapsed .sidebar-header {
+    justify-content: center !important;
+}
+
+.sidebar.sidebar-collapsed .nav-link {
+    justify-content: center !important;
+    padding: 10px 0 !important;
+}
+
+.sidebar.sidebar-collapsed .sidebar-bottom {
+    flex-direction: column !important;
+    gap: 12px !important;
+    align-items: center !important;
+}
+
+.sidebar.sidebar-collapsed .user-profile {
+    justify-content: center !important;
+    padding: 0 !important;
 }
 
 .main-content {
@@ -104,7 +133,7 @@ a:hover {
 }
 
 .main-content.sidebar-collapsed {
-    margin-left: 0;
+    margin-left: 76px;
 }
 
 /* Burger Button */
