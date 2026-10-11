@@ -73,7 +73,7 @@
                 <h1 class="page-title">Overview</h1>
             </div>
             
-            <div class="grid md:grid-cols-4 gap-6 mb-6">
+            <div class="grid-2x2" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 24px;">
                 <div class="card">
                     <div class="text-sm font-semibold text-muted mb-2">Total Accepted Volume</div>
                     <div class="text-3xl font-bold">${{ number_format($totalRevenue, 2) }}</div>
