@@ -30,7 +30,6 @@ class AdminRoutesTest extends TestCase
         $dashResponse->assertStatus(200);
         $dashResponse->assertViewIs('admin.dashboard');
         $dashResponse->assertSee('Overview');
-        $dashResponse->assertSee('Live Updates');
         $dashResponse->assertSee('Total Accepted Volume');
         $dashResponse->assertSee('Transactions');
         // Ensure audit trail table is NOT on the dashboard
@@ -44,7 +43,6 @@ class AdminRoutesTest extends TestCase
         $auditResponse->assertStatus(200);
         $auditResponse->assertViewIs('admin.audit-logs');
         $auditResponse->assertSee('Audit Trail');
-        $auditResponse->assertSee('Live Updates');
         $auditResponse->assertSee('Forensic record of all administrative transaction decisions');
         $auditResponse->assertSee('Total Decisions Logged');
         $auditResponse->assertSee('Audit History Records');

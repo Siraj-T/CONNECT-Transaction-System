@@ -73,15 +73,9 @@
 
         <!-- Main Content -->
         <main class="main-content" id="main-content">
-            <div class="page-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
-                <div>
-                    <h1 class="page-title" style="margin-bottom: 4px;">Audit Trail</h1>
-                    <p class="text-sm text-muted" style="margin: 0;">Forensic record of all administrative transaction decisions and operator logs.</p>
-                </div>
-                <div class="live-badge" title="Live Auto-Refresh active (pauses when tab is inactive to eliminate overhead)">
-                    <span class="live-dot"></span>
-                    <span>Live Updates</span>
-                </div>
+            <div class="page-header" style="margin-bottom: 24px;">
+                <h1 class="page-title" style="margin-bottom: 4px;">Audit Trail</h1>
+                <p class="text-sm text-muted" style="margin: 0;">Forensic record of all administrative transaction decisions and operator logs.</p>
             </div>
             
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 24px;">

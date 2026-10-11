@@ -86,12 +86,8 @@
                 </div>
             @endif
 
-            <div class="page-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
-                <h1 class="page-title" style="margin: 0;">Overview</h1>
-                <div class="live-badge" title="Live Auto-Refresh active (pauses when tab is inactive to eliminate overhead)">
-                    <span class="live-dot"></span>
-                    <span>Live Updates</span>
-                </div>
+            <div class="page-header" style="margin-bottom: 24px;">
+                <h1 class="page-title">Overview</h1>
             </div>
             
             <div class="grid-2x2" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 24px;">
