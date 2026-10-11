@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'Financial Transaction System') }} - Audit Logs</title>
+    <script>
+        if (localStorage.getItem('sidebar_collapsed') === 'true') {
+            document.documentElement.classList.add('sidebar-collapsed');
+        }
+    </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
@@ -138,15 +143,27 @@
     </div>
 
     <script>
-        // Sidebar toggle
+        // Sidebar toggle with localStorage persistence
         const sidebar = document.getElementById('sidebar');
         const mainContent = document.getElementById('main-content');
         const sidebarToggle = document.getElementById('sidebarToggle');
 
+        if (localStorage.getItem('sidebar_collapsed') === 'true') {
+            document.documentElement.classList.add('sidebar-collapsed');
+            if (sidebar) sidebar.classList.add('sidebar-collapsed');
+            if (mainContent) mainContent.classList.add('sidebar-collapsed');
+        }
+
         if (sidebarToggle) {
             sidebarToggle.addEventListener('click', function() {
-                sidebar.classList.toggle('sidebar-collapsed');
-                mainContent.classList.toggle('sidebar-collapsed');
+                const isCurrentlyCollapsed = document.documentElement.classList.contains('sidebar-collapsed');
+                const nextState = !isCurrentlyCollapsed;
+
+                document.documentElement.classList.toggle('sidebar-collapsed', nextState);
+                if (sidebar) sidebar.classList.toggle('sidebar-collapsed', nextState);
+                if (mainContent) mainContent.classList.toggle('sidebar-collapsed', nextState);
+
+                localStorage.setItem('sidebar_collapsed', nextState ? 'true' : 'false');
             });
         }
 
