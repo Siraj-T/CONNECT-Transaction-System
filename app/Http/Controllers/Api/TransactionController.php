@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Citizen;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class TransactionController extends Controller
@@ -19,22 +20,24 @@ class TransactionController extends Controller
             'payment_method_id' => 'required|exists:payment_methods,id',
         ]);
 
-        $citizen = Citizen::firstOrCreate(
-            ['phone_number' => $validated['sender_phone']],
-            ['name' => $validated['sender_name']]
-        );
+        return DB::transaction(function () use ($validated) {
+            $citizen = Citizen::firstOrCreate(
+                ['phone_number' => $validated['sender_phone']],
+                ['name' => $validated['sender_name']]
+            );
 
-        $transaction = Transaction::create([
-            'unique_reference_number' => 'TRX-' . strtoupper(Str::random(8)),
-            'amount' => $validated['amount'],
-            'status' => 'pending',
-            'citizen_id' => $citizen->id,
-            'payment_method_id' => $validated['payment_method_id'],
-        ]);
+            $transaction = Transaction::create([
+                'unique_reference_number' => 'TRX-' . strtoupper(Str::random(8)),
+                'amount' => $validated['amount'],
+                'status' => 'pending',
+                'citizen_id' => $citizen->id,
+                'payment_method_id' => $validated['payment_method_id'],
+            ]);
 
-        return response()->json([
-            'message' => 'Transaction submitted successfully',
-            'data' => $transaction->load(['citizen', 'paymentMethod'])
-        ], 201);
+            return response()->json([
+                'message' => 'Transaction submitted successfully',
+                'data' => $transaction->load(['citizen', 'paymentMethod'])
+            ], 201);
+        });
     }
 }

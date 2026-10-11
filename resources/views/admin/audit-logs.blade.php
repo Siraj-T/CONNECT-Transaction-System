@@ -73,25 +73,31 @@
 
         <!-- Main Content -->
         <main class="main-content" id="main-content">
-            <div class="page-header" style="margin-bottom: 24px;">
-                <h1 class="page-title" style="margin-bottom: 4px;">Audit Trail</h1>
-                <p class="text-sm text-muted" style="margin: 0;">Forensic record of all administrative transaction decisions and operator logs.</p>
+            <div class="page-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
+                <div>
+                    <h1 class="page-title" style="margin-bottom: 4px;">Audit Trail</h1>
+                    <p class="text-sm text-muted" style="margin: 0;">Forensic record of all administrative transaction decisions and operator logs.</p>
+                </div>
+                <div class="live-badge" title="Live Auto-Refresh active (pauses when tab is inactive to eliminate overhead)">
+                    <span class="live-dot"></span>
+                    <span>Live Updates</span>
+                </div>
             </div>
             
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 24px;">
                 <div class="card">
                     <div class="text-sm font-semibold text-muted mb-2">Total Decisions Logged</div>
-                    <div class="text-3xl font-bold">{{ number_format($totalDecisions) }}</div>
+                    <div class="text-3xl font-bold" id="metricTotalDecisions">{{ number_format($totalDecisions) }}</div>
                 </div>
                 
                 <div class="card">
                     <div class="text-sm font-semibold text-muted mb-2">Approved Decisions</div>
-                    <div class="text-3xl font-bold text-green-600">{{ number_format($acceptedDecisions) }}</div>
+                    <div class="text-3xl font-bold text-green-600" id="metricAcceptedDecisions">{{ number_format($acceptedDecisions) }}</div>
                 </div>
             
                 <div class="card">
                     <div class="text-sm font-semibold text-muted mb-2">Rejected Decisions</div>
-                    <div class="text-3xl font-bold text-red-600">{{ number_format($rejectedDecisions) }}</div>
+                    <div class="text-3xl font-bold text-red-600" id="metricRejectedDecisions">{{ number_format($rejectedDecisions) }}</div>
                 </div>
             </div>
             
@@ -106,7 +112,7 @@
                             Audit History Records
                         </h2>
                     </div>
-                    <span class="badge" style="background: #eef2f7; color: #475569; font-size: 12px; font-weight: 600;">
+                    <span class="badge" id="auditCountBadge" style="background: #eef2f7; color: #475569; font-size: 12px; font-weight: 600;">
                         {{ $auditLogs->total() }} Records
                     </span>
                 </div>
@@ -122,91 +128,15 @@
                                 <th>Details</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            @forelse($auditLogs as $log)
-                            <tr>
-                                <td class="text-muted" style="white-space: nowrap;">
-                                    {{ $log->created_at->format('M d, Y H:i:s') }}
-                                </td>
-                                <td>
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <div style="width: 26px; height: 26px; border-radius: 50%; background: var(--color-bg); border: 1px solid var(--color-border); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--color-primary);">
-                                            {{ strtoupper(substr($log->admin->name ?? 'A', 0, 1)) }}
-                                        </div>
-                                        <span class="font-medium">{{ $log->admin->name ?? 'Admin' }}</span>
-                                    </div>
-                                </td>
-                                <td>
-                                    @if(str_contains($log->action, 'accept'))
-                                        <span class="badge badge-success">Accepted</span>
-                                    @elseif(str_contains($log->action, 'reject'))
-                                        <span class="badge badge-danger">Rejected</span>
-                                    @else
-                                        <span class="badge badge-primary">{{ ucfirst($log->action) }}</span>
-                                    @endif
-                                </td>
-                                <td class="font-semibold">{{ $log->reference_number ?? '—' }}</td>
-                                <td class="text-muted" style="font-size: 13px;">{{ $log->details }}</td>
-                            </tr>
-                            @empty
-                            <tr>
-                                <td colspan="5" class="text-center text-muted py-8">
-                                    No audit entries yet. Approving or rejecting a transaction will record forensic history here.
-                                </td>
-                            </tr>
-                            @endforelse
+                        <tbody id="auditLogsTableBody">
+                            @include('admin.partials.audit-log-rows', ['auditLogs' => $auditLogs])
                         </tbody>
                     </table>
                 </div>
 
                 {{-- Always Visible Pagination with Arrows --}}
-                <div class="pagination-container" style="display: flex; align-items: center; justify-content: space-between; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--color-border); flex-wrap: wrap; gap: 12px;">
-                    <div>
-                        <p style="font-size: 13px; color: var(--color-text-muted); margin: 0;">
-                            Showing 
-                            <span style="font-weight: 600; color: var(--color-text-main);">{{ $auditLogs->total() > 0 ? ($auditLogs->firstItem() ?? 1) : 0 }}</span>
-                            to 
-                            <span style="font-weight: 600; color: var(--color-text-main);">{{ $auditLogs->total() > 0 ? ($auditLogs->lastItem() ?? 1) : 0 }}</span>
-                            of 
-                            <span style="font-weight: 600; color: var(--color-text-main);">{{ $auditLogs->total() }}</span> results
-                        </p>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        {{-- Previous Arrow Button --}}
-                        @if ($auditLogs->onFirstPage())
-                            <span class="pagination-arrow-btn disabled" aria-disabled="true" title="Previous page" style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-muted); opacity: 0.4; cursor: not-allowed;">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="15 18 9 12 15 6"></polyline>
-                                </svg>
-                            </span>
-                        @else
-                            <a href="{{ $auditLogs->previousPageUrl() }}" class="pagination-arrow-btn" title="Previous page" style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-main); text-decoration: none;">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="15 18 9 12 15 6"></polyline>
-                                </svg>
-                            </a>
-                        @endif
-
-                        {{-- Current Page Indicator --}}
-                        <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 34px; padding: 0 10px; border-radius: 8px; background: var(--color-primary); color: white; font-size: 13px; font-weight: 600;">
-                            {{ $auditLogs->currentPage() }}
-                        </span>
-
-                        {{-- Next Arrow Button --}}
-                        @if ($auditLogs->hasMorePages())
-                            <a href="{{ $auditLogs->nextPageUrl() }}" class="pagination-arrow-btn" title="Next page" style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-main); text-decoration: none;">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="9 18 15 12 9 6"></polyline>
-                                </svg>
-                            </a>
-                        @else
-                            <span class="pagination-arrow-btn disabled" aria-disabled="true" title="Next page" style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-muted); opacity: 0.4; cursor: not-allowed;">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="9 18 15 12 9 6"></polyline>
-                                </svg>
-                            </span>
-                        @endif
-                    </div>
+                <div id="auditLogsPagination">
+                    @include('admin.partials.pagination', ['paginator' => $auditLogs])
                 </div>
             </div>
 
@@ -214,14 +144,112 @@
     </div>
 
     <script>
+        // Sidebar toggle
         const sidebar = document.getElementById('sidebar');
         const mainContent = document.getElementById('main-content');
         const sidebarToggle = document.getElementById('sidebarToggle');
 
-        sidebarToggle.addEventListener('click', function() {
-            sidebar.classList.toggle('sidebar-collapsed');
-            mainContent.classList.toggle('sidebar-collapsed');
-        });
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', function() {
+                sidebar.classList.toggle('sidebar-collapsed');
+                mainContent.classList.toggle('sidebar-collapsed');
+            });
+        }
+
+        // --- Zero-Leak Live Auto-Refresh Controller ---
+        (function() {
+            let currentVersion = "{{ $initialVersion }}";
+            const liveUrl = "{{ route('admin.audit-logs.live') }}";
+            const currentPage = {{ $auditLogs->currentPage() }};
+            const pollIntervalMs = 4000; // 4 seconds
+            
+            let pollTimeout = null;
+            let currentAbortCtrl = null;
+
+            const elTotal = document.getElementById('metricTotalDecisions');
+            const elAccepted = document.getElementById('metricAcceptedDecisions');
+            const elRejected = document.getElementById('metricRejectedDecisions');
+            const elTbody = document.getElementById('auditLogsTableBody');
+            const elPagination = document.getElementById('auditLogsPagination');
+            const elBadge = document.getElementById('auditCountBadge');
+
+            function scheduleNextPoll(delay) {
+                if (document.hidden) return; // Zero overhead: pause when inactive
+                if (pollTimeout) clearTimeout(pollTimeout);
+                pollTimeout = setTimeout(fetchLiveUpdate, delay);
+            }
+
+            async function fetchLiveUpdate() {
+                if (document.hidden) return;
+
+                if (currentAbortCtrl) {
+                    currentAbortCtrl.abort();
+                }
+                currentAbortCtrl = new AbortController();
+
+                try {
+                    const res = await fetch(`${liveUrl}?v=${encodeURIComponent(currentVersion)}&page=${currentPage}`, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        signal: currentAbortCtrl.signal
+                    });
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.changed) {
+                            currentVersion = data.version;
+                            if (data.metrics) {
+                                if (elTotal) elTotal.textContent = data.metrics.totalDecisions;
+                                if (elAccepted) elAccepted.textContent = data.metrics.acceptedDecisions;
+                                if (elRejected) elRejected.textContent = data.metrics.rejectedDecisions;
+                            }
+                            if (data.rowsHtml && elTbody) {
+                                elTbody.innerHTML = data.rowsHtml;
+                            }
+                            if (data.paginationHtml && elPagination) {
+                                elPagination.innerHTML = data.paginationHtml;
+                            }
+                        }
+                    }
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        scheduleNextPoll(8000);
+                        return;
+                    }
+                } finally {
+                    currentAbortCtrl = null;
+                }
+
+                scheduleNextPoll(pollIntervalMs);
+            }
+
+            // Pause polling when tab is hidden, resume immediately when tab is visible
+            document.addEventListener('visibilitychange', function() {
+                if (document.hidden) {
+                    if (pollTimeout) {
+                        clearTimeout(pollTimeout);
+                        pollTimeout = null;
+                    }
+                    if (currentAbortCtrl) {
+                        currentAbortCtrl.abort();
+                        currentAbortCtrl = null;
+                    }
+                } else {
+                    fetchLiveUpdate();
+                }
+            });
+
+            // Clean up timers & pending fetches when navigating away
+            window.addEventListener('pagehide', function() {
+                if (pollTimeout) clearTimeout(pollTimeout);
+                if (currentAbortCtrl) currentAbortCtrl.abort();
+            });
+
+            // Start polling loop
+            scheduleNextPoll(pollIntervalMs);
+        })();
     </script>
 </body>
 </html>
