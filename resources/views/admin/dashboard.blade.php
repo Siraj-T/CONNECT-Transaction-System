@@ -35,6 +35,13 @@
                         </svg>
                         <span class="nav-text" style="margin-left: 10px;">Dashboard</span>
                     </a>
+                    <a href="#audit-logs" class="nav-link" title="Audit Logs">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="nav-icon" style="flex-shrink: 0;">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                            <path d="m9 12 2 2 4-4"></path>
+                        </svg>
+                        <span class="nav-text" style="margin-left: 10px;">Audit Logs</span>
+                    </a>
                 @endif
             </nav>
             <div class="sidebar-bottom">
@@ -226,6 +233,73 @@
                             </span>
                         @endif
                     </div>
+                </div>
+            </div>
+
+            <!-- Audit Trail & Activity History Card -->
+            <div class="card mt-6" id="audit-logs" style="margin-top: 24px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                        <h2 class="text-lg font-semibold" style="margin: 0; display: flex; align-items: center; gap: 8px;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-primary);">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                <path d="m9 12 2 2 4-4"></path>
+                            </svg>
+                            Audit Trail & History
+                        </h2>
+                        <p class="text-sm text-muted" style="margin-top: 4px;">Forensic record of all administrative transaction decisions.</p>
+                    </div>
+                    <span class="badge" style="background: #eef2f7; color: #475569; font-size: 12px; font-weight: 600;">
+                        {{ $auditLogs->count() }} Decisions Logged
+                    </span>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Admin Operator</th>
+                                <th>Action Taken</th>
+                                <th>Transaction Ref</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($auditLogs as $log)
+                            <tr>
+                                <td class="text-muted" style="white-space: nowrap;">
+                                    {{ $log->created_at->format('M d, Y H:i:s') }}
+                                </td>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <div style="width: 26px; height: 26px; border-radius: 50%; background: var(--color-bg); border: 1px solid var(--color-border); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--color-primary);">
+                                            {{ strtoupper(substr($log->admin->name ?? 'A', 0, 1)) }}
+                                        </div>
+                                        <span class="font-medium">{{ $log->admin->name ?? 'Admin' }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    @if(str_contains($log->action, 'accept'))
+                                        <span class="badge badge-success">Accepted</span>
+                                    @elseif(str_contains($log->action, 'reject'))
+                                        <span class="badge badge-danger">Rejected</span>
+                                    @else
+                                        <span class="badge badge-primary">{{ ucfirst($log->action) }}</span>
+                                    @endif
+                                </td>
+                                <td class="font-semibold">{{ $log->reference_number ?? '—' }}</td>
+                                <td class="text-muted" style="font-size: 13px;">{{ $log->details }}</td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-8">
+                                    No audit entries yet. Approving or rejecting a transaction above will record history here.
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
                 </div>
             </div>
 

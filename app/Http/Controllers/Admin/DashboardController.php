@@ -21,13 +21,19 @@ class DashboardController extends Controller
         $recentTransactions = Transaction::with(['citizen', 'paymentMethod'])
             ->orderByDesc('created_at')
             ->paginate(15);
+
+        $auditLogs = AuditLog::with('admin')
+            ->orderByDesc('created_at')
+            ->take(15)
+            ->get();
                                          
         return view('admin.dashboard', compact(
             'totalRevenue', 
             'pendingTransactions', 
             'acceptedTransactions', 
             'rejectedTransactions',
-            'recentTransactions'
+            'recentTransactions',
+            'auditLogs'
         ));
     }
 
