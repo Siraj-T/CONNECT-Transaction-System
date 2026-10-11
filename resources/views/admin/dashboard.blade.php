@@ -120,16 +120,9 @@
             <div class="card">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
                     <h2 class="text-lg font-semibold" style="margin: 0;">Transactions</h2>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span class="badge" id="txnCountBadge" style="background: #eef2f7; color: #475569; font-size: 12px; font-weight: 600;">
-                            {{ $recentTransactions->total() }} Total
-                        </span>
-                        <button id="manualRefreshBtn" type="button" title="Refresh transactions" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--color-text-muted); transition: all 0.2s;">
-                            <svg id="refreshIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.4s ease;">
-                                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-                            </svg>
-                        </button>
-                    </div>
+                    <span class="badge" id="txnCountBadge" style="background: #eef2f7; color: #475569; font-size: 12px; font-weight: 600;">
+                        {{ $recentTransactions->total() }} Total
+                    </span>
                 </div>
                 <div class="table-container">
                     <table>
@@ -287,95 +280,117 @@
             });
         }
 
-        // --- Efficient On-Demand & Focus-Driven Controller (Zero Periodic Polling) ---
+    <!-- Laravel Reverb Real-Time WebSocket Client -->
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    <script>
+        // Real-Time Event-Driven Updates via Laravel Reverb (Zero Polling, Zero Button Clicks)
         (function() {
-            let currentVersion = "{{ $initialVersion }}";
-            const liveUrl = "{{ route('admin.dashboard.live') }}";
-            const currentPage = {{ $recentTransactions->currentPage() }};
-            
-            let currentAbortCtrl = null;
-            let isFetching = false;
-
             const elRevenue = document.getElementById('metricTotalRevenue');
             const elPending = document.getElementById('metricPending');
             const elAccepted = document.getElementById('metricAccepted');
             const elRejected = document.getElementById('metricRejected');
             const elTbody = document.getElementById('transactionsTableBody');
-            const elPagination = document.getElementById('transactionsPagination');
             const elBadge = document.getElementById('txnCountBadge');
-            const refreshBtn = document.getElementById('manualRefreshBtn');
-            const refreshIcon = document.getElementById('refreshIcon');
+            const csrfToken = '{{ csrf_token() }}';
 
-            async function fetchLiveUpdate(forced = false) {
-                if (isFetching) return;
-                isFetching = true;
+            try {
+                const pusher = new Pusher("{{ env('REVERB_APP_KEY') }}", {
+                    wsHost: "{{ env('REVERB_HOST', 'localhost') }}",
+                    wsPort: {{ env('REVERB_PORT', 8080) }},
+                    forceTLS: false,
+                    disableStats: true,
+                    enabledTransports: ['ws', 'wss'],
+                });
 
-                if (refreshIcon) {
-                    refreshIcon.style.transform = 'rotate(180deg)';
-                }
+                const channel = pusher.subscribe('admin-transactions');
 
-                if (currentAbortCtrl) {
-                    currentAbortCtrl.abort();
-                }
-                currentAbortCtrl = new AbortController();
+                // 1. Instant update when a new transaction is created
+                channel.bind('transaction.created', function(data) {
+                    if (data.metrics) {
+                        if (elRevenue) elRevenue.textContent = data.metrics.totalRevenue;
+                        if (elPending) elPending.textContent = data.metrics.pendingTransactions;
+                        if (elAccepted) elAccepted.textContent = data.metrics.acceptedTransactions;
+                        if (elRejected) elRejected.textContent = data.metrics.rejectedTransactions;
+                        if (elBadge) elBadge.textContent = data.metrics.totalCount + ' Total';
+                    }
 
-                try {
-                    const checkVer = forced ? '' : currentVersion;
-                    const res = await fetch(`${liveUrl}?v=${encodeURIComponent(checkVer)}&page=${currentPage}`, {
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        signal: currentAbortCtrl.signal
-                    });
-
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data.changed) {
-                            currentVersion = data.version;
-                            if (data.metrics) {
-                                if (elRevenue) elRevenue.textContent = data.metrics.totalRevenue;
-                                if (elPending) elPending.textContent = data.metrics.pendingTransactions;
-                                if (elAccepted) elAccepted.textContent = data.metrics.acceptedTransactions;
-                                if (elRejected) elRejected.textContent = data.metrics.rejectedTransactions;
-                            }
-                            if (data.rowsHtml && elTbody) {
-                                elTbody.innerHTML = data.rowsHtml;
-                            }
-                            if (data.paginationHtml && elPagination) {
-                                elPagination.innerHTML = data.paginationHtml;
-                            }
+                    if (data.transaction && elTbody) {
+                        const txn = data.transaction;
+                        const emptyRow = elTbody.querySelector('td[colspan]');
+                        if (emptyRow) {
+                            elTbody.innerHTML = '';
                         }
-                    }
-                } catch (err) {
-                    // Ignore aborted requests
-                } finally {
-                    isFetching = false;
-                    currentAbortCtrl = null;
-                    if (refreshIcon) {
+
+                        const newTr = document.createElement('tr');
+                        newTr.style.background = '#f0fdf4';
+                        newTr.style.transition = 'background 1.5s ease';
+                        newTr.innerHTML = `
+                            <td class="font-semibold">${txn.reference}</td>
+                            <td>${txn.citizen_name}</td>
+                            <td>${txn.citizen_phone}</td>
+                            <td><span class="badge" style="background: #eef2f7; color: #475569;">${txn.payment_method}</span></td>
+                            <td class="font-bold">$${txn.amount}</td>
+                            <td><span class="badge badge-primary">Pending</span></td>
+                            <td class="text-muted">${txn.created_at}</td>
+                            <td class="text-right" style="white-space: nowrap;">
+                                <div style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px;">
+                                    <form action="${txn.update_url}" method="POST" style="margin: 0; display: inline;">
+                                        <input type="hidden" name="_token" value="${csrfToken}">
+                                        <input type="hidden" name="_method" value="PUT">
+                                        <input type="hidden" name="action" value="accept">
+                                        <button type="submit" class="action-btn action-btn-accept" title="Accept Transaction" aria-label="Accept Transaction">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                    <form action="${txn.update_url}" method="POST" style="margin: 0; display: inline;">
+                                        <input type="hidden" name="_token" value="${csrfToken}">
+                                        <input type="hidden" name="_method" value="PUT">
+                                        <input type="hidden" name="action" value="reject">
+                                        <button type="submit" class="action-btn action-btn-reject" title="Reject Transaction" aria-label="Reject Transaction">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        `;
+                        elTbody.prepend(newTr);
                         setTimeout(() => {
-                            refreshIcon.style.transform = 'rotate(0deg)';
-                        }, 300);
+                            newTr.style.background = '';
+                        }, 2000);
                     }
-                }
+                });
+
+                // 2. Instant update when a transaction status is accepted/rejected
+                channel.bind('transaction.updated', function(data) {
+                    if (data.metrics) {
+                        if (elRevenue) elRevenue.textContent = data.metrics.totalRevenue;
+                        if (elPending) elPending.textContent = data.metrics.pendingTransactions;
+                        if (elAccepted) elAccepted.textContent = data.metrics.acceptedTransactions;
+                        if (elRejected) elRejected.textContent = data.metrics.rejectedTransactions;
+                    }
+
+                    if (data.transaction && elTbody) {
+                        const trs = elTbody.querySelectorAll('tr');
+                        trs.forEach(tr => {
+                            const refCell = tr.querySelector('td:first-child');
+                            if (refCell && refCell.textContent.trim() === data.transaction.reference) {
+                                const statusCell = tr.children[5];
+                                const actionCell = tr.children[7];
+                                const isAccepted = data.transaction.status === 'accepted';
+                                statusCell.innerHTML = `<span class="badge badge-${isAccepted ? 'success' : 'danger'}">${isAccepted ? 'Accepted' : 'Rejected'}</span>`;
+                                actionCell.innerHTML = `<span class="text-muted text-sm" style="font-weight: 500;">Processed</span>`;
+                            }
+                        });
+                    }
+                });
+            } catch (err) {
+                console.warn('Reverb WebSocket initialization error:', err);
             }
-
-            // 1. Manual 1-click refresh button
-            if (refreshBtn) {
-                refreshBtn.addEventListener('click', () => fetchLiveUpdate(true));
-            }
-
-            // 2. Sync only when returning to this browser tab (Zero background polling)
-            document.addEventListener('visibilitychange', function() {
-                if (!document.hidden) {
-                    fetchLiveUpdate(false);
-                }
-            });
-
-            // Clean up aborted fetches on exit
-            window.addEventListener('pagehide', function() {
-                if (currentAbortCtrl) currentAbortCtrl.abort();
-            });
         })();
     </script>
 </body>

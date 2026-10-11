@@ -177,12 +177,14 @@ class DashboardController extends Controller
             'admin_id' => auth()->id()
         ]);
 
-        AuditLog::create([
+        $auditLog = AuditLog::create([
             'admin_id' => auth()->id(),
             'action' => $status . '_transaction',
             'reference_number' => $transaction->unique_reference_number,
             'details' => "Transaction {$transaction->unique_reference_number} was {$status}."
         ]);
+
+        broadcast(new \App\Events\TransactionStatusUpdated($transaction, $auditLog));
 
         return redirect()->back()->with('success', "Transaction {$transaction->status} successfully.");
     }

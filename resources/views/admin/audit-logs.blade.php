@@ -111,16 +111,9 @@
                             Audit History Records
                         </h2>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span class="badge" id="auditCountBadge" style="background: #eef2f7; color: #475569; font-size: 12px; font-weight: 600;">
-                            {{ $auditLogs->total() }} Records
-                        </span>
-                        <button id="manualRefreshBtn" type="button" title="Refresh audit logs" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--color-text-muted); transition: all 0.2s;">
-                            <svg id="refreshIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.4s ease;">
-                                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-                            </svg>
-                        </button>
-                    </div>
+                    <span class="badge" id="auditCountBadge" style="background: #eef2f7; color: #475569; font-size: 12px; font-weight: 600;">
+                        {{ $auditLogs->total() }} Records
+                    </span>
                 </div>
 
                 <div class="table-container">
@@ -256,93 +249,70 @@
             });
         }
 
-        // --- Efficient On-Demand & Focus-Driven Controller (Zero Periodic Polling) ---
+    <!-- Laravel Reverb Real-Time WebSocket Client -->
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    <script>
+        // Real-Time Event-Driven Updates via Laravel Reverb (Zero Polling, Zero Button Clicks)
         (function() {
-            let currentVersion = "{{ $initialVersion }}";
-            const liveUrl = "{{ route('admin.audit-logs.live') }}";
-            const currentPage = {{ $auditLogs->currentPage() }};
-            
-            let currentAbortCtrl = null;
-            let isFetching = false;
-
             const elTotal = document.getElementById('metricTotalDecisions');
             const elAccepted = document.getElementById('metricAcceptedDecisions');
             const elRejected = document.getElementById('metricRejectedDecisions');
             const elTbody = document.getElementById('auditLogsTableBody');
-            const elPagination = document.getElementById('auditLogsPagination');
             const elBadge = document.getElementById('auditCountBadge');
-            const refreshBtn = document.getElementById('manualRefreshBtn');
-            const refreshIcon = document.getElementById('refreshIcon');
 
-            async function fetchLiveUpdate(forced = false) {
-                if (isFetching) return;
-                isFetching = true;
+            try {
+                const pusher = new Pusher("{{ env('REVERB_APP_KEY') }}", {
+                    wsHost: "{{ env('REVERB_HOST', 'localhost') }}",
+                    wsPort: {{ env('REVERB_PORT', 8080) }},
+                    forceTLS: false,
+                    disableStats: true,
+                    enabledTransports: ['ws', 'wss'],
+                });
 
-                if (refreshIcon) {
-                    refreshIcon.style.transform = 'rotate(180deg)';
-                }
+                const channel = pusher.subscribe('admin-audit-logs');
 
-                if (currentAbortCtrl) {
-                    currentAbortCtrl.abort();
-                }
-                currentAbortCtrl = new AbortController();
+                channel.bind('transaction.updated', function(data) {
+                    if (data.audit_metrics) {
+                        if (elTotal) elTotal.textContent = data.audit_metrics.totalDecisions;
+                        if (elAccepted) elAccepted.textContent = data.audit_metrics.acceptedDecisions;
+                        if (elRejected) elRejected.textContent = data.audit_metrics.rejectedDecisions;
+                        if (elBadge) elBadge.textContent = data.audit_metrics.totalRecords + ' Records';
+                    }
 
-                try {
-                    const checkVer = forced ? '' : currentVersion;
-                    const res = await fetch(`${liveUrl}?v=${encodeURIComponent(checkVer)}&page=${currentPage}`, {
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        signal: currentAbortCtrl.signal
-                    });
-
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data.changed) {
-                            currentVersion = data.version;
-                            if (data.metrics) {
-                                if (elTotal) elTotal.textContent = data.metrics.totalDecisions;
-                                if (elAccepted) elAccepted.textContent = data.metrics.acceptedDecisions;
-                                if (elRejected) elRejected.textContent = data.metrics.rejectedDecisions;
-                            }
-                            if (data.rowsHtml && elTbody) {
-                                elTbody.innerHTML = data.rowsHtml;
-                            }
-                            if (data.paginationHtml && elPagination) {
-                                elPagination.innerHTML = data.paginationHtml;
-                            }
+                    if (data.audit_log && elTbody) {
+                        const log = data.audit_log;
+                        const emptyRow = elTbody.querySelector('td[colspan]');
+                        if (emptyRow) {
+                            elTbody.innerHTML = '';
                         }
-                    }
-                } catch (err) {
-                    // Ignore aborted requests
-                } finally {
-                    isFetching = false;
-                    currentAbortCtrl = null;
-                    if (refreshIcon) {
+
+                        const isAccepted = log.action.includes('accept');
+                        const newTr = document.createElement('tr');
+                        newTr.style.background = isAccepted ? '#f0fdf4' : '#fef2f2';
+                        newTr.style.transition = 'background 1.5s ease';
+                        newTr.innerHTML = `
+                            <td class="text-muted" style="white-space: nowrap;">${log.timestamp}</td>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <div style="width: 26px; height: 26px; border-radius: 50%; background: var(--color-bg); border: 1px solid var(--color-border); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--color-primary);">
+                                        ${(log.admin_name || 'A').charAt(0).toUpperCase()}
+                                    </div>
+                                    <span class="font-medium">${log.admin_name}</span>
+                                </div>
+                            </td>
+                            <td><span class="badge badge-${isAccepted ? 'success' : 'danger'}">${isAccepted ? 'Accepted' : 'Rejected'}</span></td>
+                            <td class="font-semibold">${log.reference}</td>
+                            <td class="text-muted" style="font-size: 13px;">${log.details}</td>
+                        `;
+                        elTbody.prepend(newTr);
                         setTimeout(() => {
-                            refreshIcon.style.transform = 'rotate(0deg)';
-                        }, 300);
+                            newTr.style.background = '';
+                        }, 2000);
                     }
-                }
+                });
+            } catch (err) {
+                console.warn('Reverb WebSocket initialization error:', err);
             }
-
-            // 1. Manual 1-click refresh button
-            if (refreshBtn) {
-                refreshBtn.addEventListener('click', () => fetchLiveUpdate(true));
-            }
-
-            // 2. Sync only when returning to this browser tab (Zero background polling)
-            document.addEventListener('visibilitychange', function() {
-                if (!document.hidden) {
-                    fetchLiveUpdate(false);
-                }
-            });
-
-            // Clean up aborted fetches on exit
-            window.addEventListener('pagehide', function() {
-                if (currentAbortCtrl) currentAbortCtrl.abort();
-            });
         })();
     </script>
 </body>

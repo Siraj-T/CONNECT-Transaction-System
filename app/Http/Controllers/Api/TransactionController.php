@@ -40,6 +40,9 @@ class TransactionController extends Controller
                 'payment_method_id'       => $validated['payment_method_id'],
             ]);
 
+            // Broadcast real-time WebSocket event via Laravel Reverb
+            broadcast(new \App\Events\TransactionCreated($transaction));
+
             return response()->json([
                 'message' => 'Transaction submitted successfully',
                 'data'    => $transaction->load(['citizen', 'paymentMethod'])
