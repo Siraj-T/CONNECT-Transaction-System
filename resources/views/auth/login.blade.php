@@ -83,10 +83,6 @@
                 {{ __('Log In') }}
             </button>
         </div>
-        
-        <div style="text-align: center; margin-top: 24px; font-size: 14px; color: var(--color-text-muted);">
-            Don't have an account? <a href="{{ route('register') }}" style="font-weight: 600; color: var(--color-text-main);">Sign up</a>
-        </div>
     </form>
             </div>
         </div>
