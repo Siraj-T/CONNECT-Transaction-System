@@ -15,6 +15,6 @@ class AdminMiddleware
             return $next($request);
         }
 
-        return redirect()->route('dashboard')->with('error', 'Unauthorized access.');
+        abort(403, 'Unauthorized access. Administrator privileges required.');
     }
 }
