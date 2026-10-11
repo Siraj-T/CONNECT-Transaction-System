@@ -69,6 +69,15 @@ class DashboardController extends Controller
             ->orderByDesc('created_at')
             ->paginate(15, ['*'], 'page', $page);
 
+        $view = view('admin.dashboard', [
+            'totalRevenue' => (float) ($metrics->total_revenue ?? 0),
+            'pendingTransactions' => (int) ($metrics->pending_count ?? 0),
+            'acceptedTransactions' => (int) ($metrics->accepted_count ?? 0),
+            'rejectedTransactions' => (int) ($metrics->rejected_count ?? 0),
+            'recentTransactions' => $recentTransactions,
+            'initialVersion' => $version,
+        ]);
+
         return response()->json([
             'changed' => true,
             'version' => $version,
@@ -78,8 +87,8 @@ class DashboardController extends Controller
                 'acceptedTransactions' => number_format((int) ($metrics->accepted_count ?? 0)),
                 'rejectedTransactions' => number_format((int) ($metrics->rejected_count ?? 0)),
             ],
-            'rowsHtml' => view('admin.partials.transaction-rows', compact('recentTransactions'))->render(),
-            'paginationHtml' => view('admin.partials.pagination', ['paginator' => $recentTransactions])->render(),
+            'rowsHtml' => $view->fragment('transaction-rows'),
+            'paginationHtml' => $view->fragment('pagination'),
         ]);
     }
 
@@ -134,6 +143,14 @@ class DashboardController extends Controller
             ->orderByDesc('created_at')
             ->paginate(15, ['*'], 'page', $page);
 
+        $view = view('admin.audit-logs', [
+            'auditLogs' => $auditLogs,
+            'totalDecisions' => (int) ($metrics->total_decisions ?? 0),
+            'acceptedDecisions' => (int) ($metrics->accepted_decisions ?? 0),
+            'rejectedDecisions' => (int) ($metrics->rejected_decisions ?? 0),
+            'initialVersion' => $version,
+        ]);
+
         return response()->json([
             'changed' => true,
             'version' => $version,
@@ -142,8 +159,8 @@ class DashboardController extends Controller
                 'acceptedDecisions' => number_format((int) ($metrics->accepted_decisions ?? 0)),
                 'rejectedDecisions' => number_format((int) ($metrics->rejected_decisions ?? 0)),
             ],
-            'rowsHtml' => view('admin.partials.audit-log-rows', compact('auditLogs'))->render(),
-            'paginationHtml' => view('admin.partials.pagination', ['paginator' => $auditLogs])->render(),
+            'rowsHtml' => $view->fragment('audit-log-rows'),
+            'paginationHtml' => $view->fragment('pagination'),
         ]);
     }
 

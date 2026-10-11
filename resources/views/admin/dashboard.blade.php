@@ -120,9 +120,16 @@
             <div class="card">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
                     <h2 class="text-lg font-semibold" style="margin: 0;">Transactions</h2>
-                    <span class="badge" id="txnCountBadge" style="background: #eef2f7; color: #475569; font-size: 12px; font-weight: 600;">
-                        {{ $recentTransactions->total() }} Total
-                    </span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="badge" id="txnCountBadge" style="background: #eef2f7; color: #475569; font-size: 12px; font-weight: 600;">
+                            {{ $recentTransactions->total() }} Total
+                        </span>
+                        <button id="manualRefreshBtn" type="button" title="Refresh transactions" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--color-text-muted); transition: all 0.2s;">
+                            <svg id="refreshIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.4s ease;">
+                                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="table-container">
                     <table>
@@ -139,14 +146,116 @@
                             </tr>
                         </thead>
                         <tbody id="transactionsTableBody">
-                            @include('admin.partials.transaction-rows', ['recentTransactions' => $recentTransactions])
+                            @fragment('transaction-rows')
+                            @forelse($recentTransactions as $txn)
+                            <tr>
+                                <td class="font-semibold">{{ $txn->unique_reference_number }}</td>
+                                <td>{{ $txn->citizen->name }}</td>
+                                <td>{{ $txn->citizen->phone_number }}</td>
+                                <td>
+                                    <span class="badge" style="background: #eef2f7; color: #475569;">
+                                        {{ $txn->paymentMethod->name }}
+                                    </span>
+                                </td>
+                                <td class="font-bold">${{ number_format($txn->amount, 2) }}</td>
+                                <td>
+                                    <span class="badge badge-{{ $txn->status === 'accepted' ? 'success' : ($txn->status === 'rejected' ? 'danger' : 'primary') }}">
+                                        {{ ucfirst($txn->status) }}
+                                    </span>
+                                </td>
+                                <td class="text-muted">{{ $txn->created_at->format('M d, Y H:i') }}</td>
+                                <td class="text-right" style="white-space: nowrap;">
+                                    @if($txn->status === 'pending')
+                                    <div style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px;">
+                                        <form action="{{ route('admin.transactions.status.update', $txn) }}" method="POST" style="margin: 0; display: inline;">
+                                            @csrf
+                                            @method('PUT')
+                                            <input type="hidden" name="action" value="accept">
+                                            <button type="submit" class="action-btn action-btn-accept" title="Accept Transaction" aria-label="Accept Transaction">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                        <form action="{{ route('admin.transactions.status.update', $txn) }}" method="POST" style="margin: 0; display: inline;">
+                                            @csrf
+                                            @method('PUT')
+                                            <input type="hidden" name="action" value="reject">
+                                            <button type="submit" class="action-btn action-btn-reject" title="Reject Transaction" aria-label="Reject Transaction">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    </div>
+                                    @else
+                                    <span class="text-muted text-sm" style="font-weight: 500;">Processed</span>
+                                    @endif
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-8">No transactions found.</td>
+                            </tr>
+                            @endforelse
+                            @endfragment
                         </tbody>
                     </table>
                 </div>
                 
                 {{-- Always Visible Pagination with Arrows --}}
                 <div id="transactionsPagination">
-                    @include('admin.partials.pagination', ['paginator' => $recentTransactions])
+                    @fragment('pagination')
+                    <div class="pagination-container" style="display: flex; align-items: center; justify-content: space-between; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--color-border); flex-wrap: wrap; gap: 12px;">
+                        <div>
+                            <p style="font-size: 13px; color: var(--color-text-muted); margin: 0;">
+                                Showing 
+                                <span style="font-weight: 600; color: var(--color-text-main);">{{ $recentTransactions->total() > 0 ? ($recentTransactions->firstItem() ?? 1) : 0 }}</span>
+                                to 
+                                <span style="font-weight: 600; color: var(--color-text-main);">{{ $recentTransactions->total() > 0 ? ($recentTransactions->lastItem() ?? 1) : 0 }}</span>
+                                of 
+                                <span style="font-weight: 600; color: var(--color-text-main);">{{ $recentTransactions->total() }}</span> results
+                            </p>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            {{-- Previous Arrow Button --}}
+                            @if ($recentTransactions->onFirstPage())
+                                <span class="pagination-arrow-btn disabled" aria-disabled="true" title="Previous page" style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-muted); opacity: 0.4; cursor: not-allowed;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="15 18 9 12 15 6"></polyline>
+                                    </svg>
+                                </span>
+                            @else
+                                <a href="{{ $recentTransactions->previousPageUrl() }}" class="pagination-arrow-btn" title="Previous page" style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-main); text-decoration: none;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="15 18 9 12 15 6"></polyline>
+                                    </svg>
+                                </a>
+                            @endif
+
+                            {{-- Current Page Indicator --}}
+                            <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 34px; padding: 0 10px; border-radius: 8px; background: var(--color-primary); color: white; font-size: 13px; font-weight: 600;">
+                                {{ $recentTransactions->currentPage() }}
+                            </span>
+
+                            {{-- Next Arrow Button --}}
+                            @if ($recentTransactions->hasMorePages())
+                                <a href="{{ $recentTransactions->nextPageUrl() }}" class="pagination-arrow-btn" title="Next page" style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-main); text-decoration: none;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="9 18 15 12 9 6"></polyline>
+                                    </svg>
+                                </a>
+                            @else
+                                <span class="pagination-arrow-btn disabled" aria-disabled="true" title="Next page" style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-muted); opacity: 0.4; cursor: not-allowed;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="9 18 15 12 9 6"></polyline>
+                                    </svg>
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+                    @endfragment
                 </div>
             </div>
 
@@ -178,15 +287,14 @@
             });
         }
 
-        // --- Zero-Leak Live Auto-Refresh Controller ---
+        // --- Efficient On-Demand & Focus-Driven Controller (Zero Periodic Polling) ---
         (function() {
             let currentVersion = "{{ $initialVersion }}";
             const liveUrl = "{{ route('admin.dashboard.live') }}";
             const currentPage = {{ $recentTransactions->currentPage() }};
-            const pollIntervalMs = 3500; // 3.5 seconds
             
-            let pollTimeout = null;
             let currentAbortCtrl = null;
+            let isFetching = false;
 
             const elRevenue = document.getElementById('metricTotalRevenue');
             const elPending = document.getElementById('metricPending');
@@ -194,15 +302,17 @@
             const elRejected = document.getElementById('metricRejected');
             const elTbody = document.getElementById('transactionsTableBody');
             const elPagination = document.getElementById('transactionsPagination');
+            const elBadge = document.getElementById('txnCountBadge');
+            const refreshBtn = document.getElementById('manualRefreshBtn');
+            const refreshIcon = document.getElementById('refreshIcon');
 
-            function scheduleNextPoll(delay) {
-                if (document.hidden) return; // Zero overhead: never poll when tab is inactive
-                if (pollTimeout) clearTimeout(pollTimeout);
-                pollTimeout = setTimeout(fetchLiveUpdate, delay);
-            }
+            async function fetchLiveUpdate(forced = false) {
+                if (isFetching) return;
+                isFetching = true;
 
-            async function fetchLiveUpdate() {
-                if (document.hidden) return;
+                if (refreshIcon) {
+                    refreshIcon.style.transform = 'rotate(180deg)';
+                }
 
                 if (currentAbortCtrl) {
                     currentAbortCtrl.abort();
@@ -210,7 +320,8 @@
                 currentAbortCtrl = new AbortController();
 
                 try {
-                    const res = await fetch(`${liveUrl}?v=${encodeURIComponent(currentVersion)}&page=${currentPage}`, {
+                    const checkVer = forced ? '' : currentVersion;
+                    const res = await fetch(`${liveUrl}?v=${encodeURIComponent(checkVer)}&page=${currentPage}`, {
                         headers: {
                             'Accept': 'application/json',
                             'X-Requested-With': 'XMLHttpRequest'
@@ -220,7 +331,6 @@
 
                     if (res.ok) {
                         const data = await res.json();
-                        // Only mutate DOM if server detected data changes
                         if (data.changed) {
                             currentVersion = data.version;
                             if (data.metrics) {
@@ -238,43 +348,34 @@
                         }
                     }
                 } catch (err) {
-                    if (err.name !== 'AbortError') {
-                        // On network failure, back off to 8s to prevent hammering
-                        scheduleNextPoll(8000);
-                        return;
-                    }
+                    // Ignore aborted requests
                 } finally {
+                    isFetching = false;
                     currentAbortCtrl = null;
+                    if (refreshIcon) {
+                        setTimeout(() => {
+                            refreshIcon.style.transform = 'rotate(0deg)';
+                        }, 300);
+                    }
                 }
-
-                // Schedule next poll safely after the previous request resolves
-                scheduleNextPoll(pollIntervalMs);
             }
 
-            // Pause polling when tab is hidden, resume immediately when tab is visible
+            // 1. Manual 1-click refresh button
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', () => fetchLiveUpdate(true));
+            }
+
+            // 2. Sync only when returning to this browser tab (Zero background polling)
             document.addEventListener('visibilitychange', function() {
-                if (document.hidden) {
-                    if (pollTimeout) {
-                        clearTimeout(pollTimeout);
-                        pollTimeout = null;
-                    }
-                    if (currentAbortCtrl) {
-                        currentAbortCtrl.abort();
-                        currentAbortCtrl = null;
-                    }
-                } else {
-                    fetchLiveUpdate();
+                if (!document.hidden) {
+                    fetchLiveUpdate(false);
                 }
             });
 
-            // Clean up timers & pending fetches when navigating away
+            // Clean up aborted fetches on exit
             window.addEventListener('pagehide', function() {
-                if (pollTimeout) clearTimeout(pollTimeout);
                 if (currentAbortCtrl) currentAbortCtrl.abort();
             });
-
-            // Start polling loop
-            scheduleNextPoll(pollIntervalMs);
         })();
     </script>
 </body>

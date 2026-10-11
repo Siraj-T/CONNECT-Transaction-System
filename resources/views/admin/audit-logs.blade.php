@@ -111,9 +111,16 @@
                             Audit History Records
                         </h2>
                     </div>
-                    <span class="badge" id="auditCountBadge" style="background: #eef2f7; color: #475569; font-size: 12px; font-weight: 600;">
-                        {{ $auditLogs->total() }} Records
-                    </span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="badge" id="auditCountBadge" style="background: #eef2f7; color: #475569; font-size: 12px; font-weight: 600;">
+                            {{ $auditLogs->total() }} Records
+                        </span>
+                        <button id="manualRefreshBtn" type="button" title="Refresh audit logs" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--color-text-muted); transition: all 0.2s;">
+                            <svg id="refreshIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.4s ease;">
+                                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="table-container">
@@ -128,14 +135,96 @@
                             </tr>
                         </thead>
                         <tbody id="auditLogsTableBody">
-                            @include('admin.partials.audit-log-rows', ['auditLogs' => $auditLogs])
+                            @fragment('audit-log-rows')
+                            @forelse($auditLogs as $log)
+                            <tr>
+                                <td class="text-muted" style="white-space: nowrap;">
+                                    {{ $log->created_at->format('M d, Y H:i:s') }}
+                                </td>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <div style="width: 26px; height: 26px; border-radius: 50%; background: var(--color-bg); border: 1px solid var(--color-border); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--color-primary);">
+                                            {{ strtoupper(substr($log->admin->name ?? 'A', 0, 1)) }}
+                                        </div>
+                                        <span class="font-medium">{{ $log->admin->name ?? 'Admin' }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    @if(str_contains($log->action, 'accept'))
+                                        <span class="badge badge-success">Accepted</span>
+                                    @elseif(str_contains($log->action, 'reject'))
+                                        <span class="badge badge-danger">Rejected</span>
+                                    @else
+                                        <span class="badge badge-primary">{{ ucfirst($log->action) }}</span>
+                                    @endif
+                                </td>
+                                <td class="font-semibold">{{ $log->reference_number ?? '—' }}</td>
+                                <td class="text-muted" style="font-size: 13px;">{{ $log->details }}</td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-8">
+                                    No audit entries yet. Approving or rejecting a transaction will record forensic history here.
+                                </td>
+                            </tr>
+                            @endforelse
+                            @endfragment
                         </tbody>
                     </table>
                 </div>
 
                 {{-- Always Visible Pagination with Arrows --}}
                 <div id="auditLogsPagination">
-                    @include('admin.partials.pagination', ['paginator' => $auditLogs])
+                    @fragment('pagination')
+                    <div class="pagination-container" style="display: flex; align-items: center; justify-content: space-between; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--color-border); flex-wrap: wrap; gap: 12px;">
+                        <div>
+                            <p style="font-size: 13px; color: var(--color-text-muted); margin: 0;">
+                                Showing 
+                                <span style="font-weight: 600; color: var(--color-text-main);">{{ $auditLogs->total() > 0 ? ($auditLogs->firstItem() ?? 1) : 0 }}</span>
+                                to 
+                                <span style="font-weight: 600; color: var(--color-text-main);">{{ $auditLogs->total() > 0 ? ($auditLogs->lastItem() ?? 1) : 0 }}</span>
+                                of 
+                                <span style="font-weight: 600; color: var(--color-text-main);">{{ $auditLogs->total() }}</span> results
+                            </p>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            {{-- Previous Arrow Button --}}
+                            @if ($auditLogs->onFirstPage())
+                                <span class="pagination-arrow-btn disabled" aria-disabled="true" title="Previous page" style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-muted); opacity: 0.4; cursor: not-allowed;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="15 18 9 12 15 6"></polyline>
+                                    </svg>
+                                </span>
+                            @else
+                                <a href="{{ $auditLogs->previousPageUrl() }}" class="pagination-arrow-btn" title="Previous page" style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-main); text-decoration: none;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="15 18 9 12 15 6"></polyline>
+                                    </svg>
+                                </a>
+                            @endif
+
+                            {{-- Current Page Indicator --}}
+                            <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 34px; padding: 0 10px; border-radius: 8px; background: var(--color-primary); color: white; font-size: 13px; font-weight: 600;">
+                                {{ $auditLogs->currentPage() }}
+                            </span>
+
+                            {{-- Next Arrow Button --}}
+                            @if ($auditLogs->hasMorePages())
+                                <a href="{{ $auditLogs->nextPageUrl() }}" class="pagination-arrow-btn" title="Next page" style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-main); text-decoration: none;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="9 18 15 12 9 6"></polyline>
+                                    </svg>
+                                </a>
+                            @else
+                                <span class="pagination-arrow-btn disabled" aria-disabled="true" title="Next page" style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-muted); opacity: 0.4; cursor: not-allowed;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="9 18 15 12 9 6"></polyline>
+                                    </svg>
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+                    @endfragment
                 </div>
             </div>
 
@@ -167,15 +256,14 @@
             });
         }
 
-        // --- Zero-Leak Live Auto-Refresh Controller ---
+        // --- Efficient On-Demand & Focus-Driven Controller (Zero Periodic Polling) ---
         (function() {
             let currentVersion = "{{ $initialVersion }}";
             const liveUrl = "{{ route('admin.audit-logs.live') }}";
             const currentPage = {{ $auditLogs->currentPage() }};
-            const pollIntervalMs = 4000; // 4 seconds
             
-            let pollTimeout = null;
             let currentAbortCtrl = null;
+            let isFetching = false;
 
             const elTotal = document.getElementById('metricTotalDecisions');
             const elAccepted = document.getElementById('metricAcceptedDecisions');
@@ -183,15 +271,16 @@
             const elTbody = document.getElementById('auditLogsTableBody');
             const elPagination = document.getElementById('auditLogsPagination');
             const elBadge = document.getElementById('auditCountBadge');
+            const refreshBtn = document.getElementById('manualRefreshBtn');
+            const refreshIcon = document.getElementById('refreshIcon');
 
-            function scheduleNextPoll(delay) {
-                if (document.hidden) return; // Zero overhead: pause when inactive
-                if (pollTimeout) clearTimeout(pollTimeout);
-                pollTimeout = setTimeout(fetchLiveUpdate, delay);
-            }
+            async function fetchLiveUpdate(forced = false) {
+                if (isFetching) return;
+                isFetching = true;
 
-            async function fetchLiveUpdate() {
-                if (document.hidden) return;
+                if (refreshIcon) {
+                    refreshIcon.style.transform = 'rotate(180deg)';
+                }
 
                 if (currentAbortCtrl) {
                     currentAbortCtrl.abort();
@@ -199,7 +288,8 @@
                 currentAbortCtrl = new AbortController();
 
                 try {
-                    const res = await fetch(`${liveUrl}?v=${encodeURIComponent(currentVersion)}&page=${currentPage}`, {
+                    const checkVer = forced ? '' : currentVersion;
+                    const res = await fetch(`${liveUrl}?v=${encodeURIComponent(checkVer)}&page=${currentPage}`, {
                         headers: {
                             'Accept': 'application/json',
                             'X-Requested-With': 'XMLHttpRequest'
@@ -225,41 +315,34 @@
                         }
                     }
                 } catch (err) {
-                    if (err.name !== 'AbortError') {
-                        scheduleNextPoll(8000);
-                        return;
-                    }
+                    // Ignore aborted requests
                 } finally {
+                    isFetching = false;
                     currentAbortCtrl = null;
+                    if (refreshIcon) {
+                        setTimeout(() => {
+                            refreshIcon.style.transform = 'rotate(0deg)';
+                        }, 300);
+                    }
                 }
-
-                scheduleNextPoll(pollIntervalMs);
             }
 
-            // Pause polling when tab is hidden, resume immediately when tab is visible
+            // 1. Manual 1-click refresh button
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', () => fetchLiveUpdate(true));
+            }
+
+            // 2. Sync only when returning to this browser tab (Zero background polling)
             document.addEventListener('visibilitychange', function() {
-                if (document.hidden) {
-                    if (pollTimeout) {
-                        clearTimeout(pollTimeout);
-                        pollTimeout = null;
-                    }
-                    if (currentAbortCtrl) {
-                        currentAbortCtrl.abort();
-                        currentAbortCtrl = null;
-                    }
-                } else {
-                    fetchLiveUpdate();
+                if (!document.hidden) {
+                    fetchLiveUpdate(false);
                 }
             });
 
-            // Clean up timers & pending fetches when navigating away
+            // Clean up aborted fetches on exit
             window.addEventListener('pagehide', function() {
-                if (pollTimeout) clearTimeout(pollTimeout);
                 if (currentAbortCtrl) currentAbortCtrl.abort();
             });
-
-            // Start polling loop
-            scheduleNextPoll(pollIntervalMs);
         })();
     </script>
 </body>
