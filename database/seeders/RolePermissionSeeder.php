@@ -89,5 +89,53 @@ class RolePermissionSeeder extends Seeder
             ['phone_number' => $citizen2->phone],
             ['user_id' => $citizen2->id, 'name' => $citizen2->name]
         );
+
+        // 5 Extra Libyan Citizen Accounts
+        $libyanCitizens = [
+            [
+                'name'  => 'Omar Al-Warfali',
+                'email' => 'omar@citizen.ly',
+                'phone' => '+218912345678',
+            ],
+            [
+                'name'  => 'Fatima Al-Zintani',
+                'email' => 'fatima@citizen.ly',
+                'phone' => '+218923456789',
+            ],
+            [
+                'name'  => 'Tarek Ben Ali',
+                'email' => 'tarek@citizen.ly',
+                'phone' => '+218917654321',
+            ],
+            [
+                'name'  => 'Mariam Al-Tarhuni',
+                'email' => 'mariam@citizen.ly',
+                'phone' => '+218928765432',
+            ],
+            [
+                'name'  => 'Yousef Al-Misrati',
+                'email' => 'yousef@citizen.ly',
+                'phone' => '+218945678901',
+            ],
+        ];
+
+        foreach ($libyanCitizens as $data) {
+            $user = User::firstOrCreate(
+                ['email' => $data['email']],
+                [
+                    'name'              => $data['name'],
+                    'phone'             => $data['phone'],
+                    'password'          => Hash::make('password'),
+                    'email_verified_at' => now(),
+                    'is_active'         => true,
+                ]
+            );
+            $user->syncRoles([$citizenRole, $customerRole]);
+
+            \App\Models\Citizen::updateOrCreate(
+                ['phone_number' => $data['phone']],
+                ['user_id' => $user->id, 'name' => $data['name']]
+            );
+        }
     }
 }
