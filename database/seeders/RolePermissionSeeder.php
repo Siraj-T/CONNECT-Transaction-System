@@ -72,18 +72,8 @@ class RolePermissionSeeder extends Seeder
             ['phone_number' => $citizen1->phone],
             ['user_id' => $citizen1->id, 'name' => $citizen1->name]
         );
-        $wallet1 = \App\Models\Wallet::firstOrCreate(
-            ['user_id' => $citizen1->id],
-            ['balance' => 5000.00, 'currency' => 'LYD']
-        );
-        if ($wallet1->wasRecentlyCreated || $wallet1->ledgers()->count() === 0) {
-            $wallet1->update(['balance' => 5000.00]);
-            $wallet1->ledgers()->create([
-                'type' => 'deposit',
-                'amount' => 5000.00,
-                'balance_after' => 5000.00,
-                'description' => 'Initial seeded citizen wallet balance',
-            ]);
+        if ($citizen1->balanceFloat < 5000.00) {
+            $citizen1->depositFloat(5000.00 - (float)$citizen1->balanceFloat, ['description' => 'Initial seeded citizen wallet balance']);
         }
 
         // Create secondary citizen user (Ahmed Mohamed)
@@ -102,18 +92,8 @@ class RolePermissionSeeder extends Seeder
             ['phone_number' => $citizen2->phone],
             ['user_id' => $citizen2->id, 'name' => $citizen2->name]
         );
-        $wallet2 = \App\Models\Wallet::firstOrCreate(
-            ['user_id' => $citizen2->id],
-            ['balance' => 3500.00, 'currency' => 'LYD']
-        );
-        if ($wallet2->wasRecentlyCreated || $wallet2->ledgers()->count() === 0) {
-            $wallet2->update(['balance' => 3500.00]);
-            $wallet2->ledgers()->create([
-                'type' => 'deposit',
-                'amount' => 3500.00,
-                'balance_after' => 3500.00,
-                'description' => 'Initial seeded citizen wallet balance',
-            ]);
+        if ($citizen2->balanceFloat < 3500.00) {
+            $citizen2->depositFloat(3500.00 - (float)$citizen2->balanceFloat, ['description' => 'Initial seeded citizen wallet balance']);
         }
 
         // 6 Extra Libyan Citizen Accounts with seeded wallet balances
@@ -174,19 +154,8 @@ class RolePermissionSeeder extends Seeder
                 ['user_id' => $user->id, 'name' => $data['name']]
             );
 
-            $wallet = \App\Models\Wallet::firstOrCreate(
-                ['user_id' => $user->id],
-                ['balance' => $data['balance'], 'currency' => 'LYD']
-            );
-
-            if ($wallet->wasRecentlyCreated || $wallet->ledgers()->count() === 0) {
-                $wallet->update(['balance' => $data['balance']]);
-                $wallet->ledgers()->create([
-                    'type'             => 'deposit',
-                    'amount'           => $data['balance'],
-                    'balance_after'    => $data['balance'],
-                    'description'      => 'Initial seeded citizen wallet balance',
-                ]);
+            if ($user->balanceFloat < $data['balance']) {
+                $user->depositFloat($data['balance'] - (float)$user->balanceFloat, ['description' => 'Initial seeded citizen wallet balance']);
             }
         }
     }

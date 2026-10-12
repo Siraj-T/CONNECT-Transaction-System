@@ -1006,24 +1006,46 @@ erDiagram
 
 ---
 
-## 9.5. Wallet & Double-Entry Ledger Transfer Architecture
+## 9.5. Official Laravel Wallet Package Integration (`bavix/laravel-wallet`)
 
-### Business Logic & Lifecycle
+### Architectural Overview & Package Configuration
 
-The system implements a bank-grade double-entry transaction architecture:
-1. **Wallet Entity (`wallets`)**: Every user has exactly one digital wallet containing their current settled `balance`, reserved `held_balance`, and ISO `currency` (`LYD`).
-2. **Audit Ledger (`wallet_ledgers`)**: Every financial movement (deposit, withdrawal, transfer in, transfer out) generates an immutable, non-destructible ledger entry storing the exact balance after the operation.
-3. **Automated Fund Adequacy Check**:
+The system integrates the industry-standard **`bavix/laravel-wallet` (^12.1)** package to handle financial balances, ledgering, mathematical precision, and atomic fund transfers:
+
+1. **Package Installation & Service Provider**:
+   - Installed via `composer require bavix/laravel-wallet`.
+   - Configuration published to `config/wallet.php`.
+   - **Table Namespace Collision Prevention**: By default, `bavix/laravel-wallet` names its internal ledger table `transactions`. To completely prevent conflict with our application's existing `transactions` table (`unique_reference_number`, `citizen_id`, `payment_method_id`), `config/wallet.php` is configured as follows:
+     ```php
+     'transaction' => [
+         'table' => env('WALLET_TRANSACTION_TABLE_NAME', 'wallet_transactions'),
+         'model' => Bavix\Wallet\Models\Transaction::class,
+     ],
+     ```
+   - This cleanly maps bavix's ledger to `wallet_transactions`, bavix transfers to `transfers`, and bavix wallets to `wallets`.
+
+2. **User Model Integration**:
+   - [`App\Models\User`](file:///c:/Users/darkn/Desktop/Transaction%20Project/financial-transaction-system/app/Models/User.php) implements `Bavix\Wallet\Interfaces\Wallet` and `Bavix\Wallet\Interfaces\WalletFloat`.
+   - It utilizes the traits `Bavix\Wallet\Traits\HasWallet` and `Bavix\Wallet\Traits\HasWalletFloat`.
+   - This equips each citizen user with:
+     - `$user->balanceFloat`: Accurate floating-point balance (e.g. `10000.00` LYD).
+     - `$user->canWithdrawFloat($amount)`: Non-blocking fund adequacy pre-check.
+     - `$user->depositFloat($amount, $meta)`: Positive fund credit.
+     - `$user->withdrawFloat($amount, $meta)`: Negative fund debit.
+     - `$user->transferFloat($recipient, $amount, $meta)`: Atomic double-entry transfer.
+
+3. **Automated Fund Adequacy Check & Auto-Rejection**:
    - When Citizen A initiates a transfer of `$X` to Citizen B via `POST /api/transactions`:
-   - The backend checks: `Citizen A Available Balance >= $X`.
-   - **Case 1 (Insufficient Balance)**: The system **automatically rejects** the transaction instantly (`status: rejected`, `rejection_reason: Auto-rejected: Insufficient wallet balance. Available: LYD ...`). An audit log is written, and Reverb pushes the rejected transaction directly to the Admin Dashboard.
+   - The backend runs: `!$user->canWithdrawFloat($amount)`.
+   - **Case 1 (Insufficient Balance)**: The system **automatically rejects** the transaction instantly (`status: rejected`, `rejection_reason: Auto-rejected: Insufficient wallet balance. (Available: LYD ..., Requested: LYD ...)`). An audit log is recorded, and Reverb pushes the rejected transaction directly to the Admin Dashboard.
    - **Case 2 (Sufficient Balance)**: The transaction is saved as `status: pending`. Reverb pushes the pending request to the Admin Dashboard for review.
-4. **Admin Approval & Settlement**:
+
+4. **Admin Approval & Bavix Atomic Settlement**:
    - When the administrator reviews and clicks **Accept** on the pending transaction:
    - Within a database transaction (`DB::transaction`):
-     1. Re-verifies sender balance.
-     2. Debits `$X` from Citizen A (`transfer_out` ledger entry).
-     3. Credits `$X` to Citizen B (`transfer_in` ledger entry).
+     1. Re-verifies `$senderUser->canWithdrawFloat($amount)`.
+     2. Calls `$senderUser->transferFloat($recipientUser, $amount, ['unique_reference_number' => $transaction->unique_reference_number])`.
+     3. Bavix automatically debits the sender in `wallet_transactions`, credits the recipient in `wallet_transactions`, and logs the transfer pair in `transfers`.
      4. Updates transaction status to `accepted` and records `admin_id`.
      5. Creates an audit log record in `audit_logs`.
      6. Broadcasts `TransactionStatusUpdated` via Reverb WebSocket.
@@ -1034,26 +1056,27 @@ sequenceDiagram
     autonumber
     actor CitizenA as Citizen A (Siraj)
     participant API as Laravel API (/api/transactions)
-    participant Wallet as Wallet Engine
+    participant Bavix as bavix/laravel-wallet Engine
     actor Admin as Admin (Dashboard)
     participant Reverb as Laravel Reverb (Port 8080)
     actor CitizenB as Citizen B (Omar)
 
     CitizenA->>API: POST /api/transactions (amount: 2000, recipient: Omar)
-    API->>Wallet: Check available balance
+    API->>Bavix: $user->canWithdrawFloat(2000)
     alt Insufficient Balance (e.g. requested 15,000 > available 10,000)
-        Wallet-->>API: Balance Insufficient
+        Bavix-->>API: Returns false
         API->>API: Mark status = 'rejected' & record rejection_reason
         API->>Reverb: Broadcast TransactionCreated (status: rejected)
         API-->>CitizenA: HTTP 422: Auto-rejected (Insufficient Balance)
     else Sufficient Balance (e.g. requested 2,000 <= available 10,000)
-        Wallet-->>API: Balance Sufficient
+        Bavix-->>API: Returns true
         API->>API: Create transaction with status = 'pending'
         API->>Reverb: Broadcast TransactionCreated (status: pending)
         Reverb-->>Admin: Real-time UI row insert + Metrics update
         API-->>CitizenA: HTTP 201: Pending Admin Approval
         Admin->>API: PUT /admin/transactions/{id}/status (action: accept)
-        API->>Wallet: Atomic Transfer: Debit Siraj (-2000) & Credit Omar (+2000)
+        API->>Bavix: $sender->transferFloat($recipient, 2000)
+        Bavix->>Bavix: Atomic Ledger: Debit Siraj (-2000) & Credit Omar (+2000)
         API->>API: Mark status = 'accepted' & write audit_logs
         API->>Reverb: Broadcast TransactionStatusUpdated
         Reverb-->>Admin: Real-time UI badge turn Green ('Accepted')

@@ -37,7 +37,7 @@ class BroadcastingEventsTest extends TestCase
             'phone' => '+1555000111',
         ]);
         $user->assignRole('citizen');
-        $user->wallet()->create(['balance' => 1000.00, 'currency' => 'LYD']);
+        $user->depositFloat(1000.00);
 
         Sanctum::actingAs($user);
 
@@ -64,7 +64,7 @@ class BroadcastingEventsTest extends TestCase
             'phone' => '+1555000222',
         ]);
         $user->assignRole('citizen');
-        $user->wallet()->create(['balance' => 100.00, 'currency' => 'LYD']);
+        $user->depositFloat(100.00);
 
         Sanctum::actingAs($user);
 

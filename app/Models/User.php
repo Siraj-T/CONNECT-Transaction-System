@@ -2,6 +2,10 @@
 
 namespace App\Models;
 
+use Bavix\Wallet\Interfaces\Wallet;
+use Bavix\Wallet\Interfaces\WalletFloat;
+use Bavix\Wallet\Traits\HasWallet;
+use Bavix\Wallet\Traits\HasWalletFloat;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,10 +15,10 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable
+class User extends Authenticatable implements Wallet, WalletFloat
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable, HasRoles;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles, HasWallet, HasWalletFloat;
 
     protected $fillable = [
         'name',
@@ -49,11 +53,6 @@ class User extends Authenticatable
     public function citizen(): HasOne
     {
         return $this->hasOne(Citizen::class);
-    }
-
-    public function wallet(): HasOne
-    {
-        return $this->hasOne(Wallet::class);
     }
 
     // ─── Helpers ────────────────────────────────────────────────────────────────

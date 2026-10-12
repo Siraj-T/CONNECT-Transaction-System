@@ -56,19 +56,13 @@ class TransactionController extends Controller
                 ], 422);
             }
 
-            // Ensure sender wallet exists
-            $wallet = $user->wallet()->firstOrCreate(
-                ['user_id' => $user->id],
-                ['balance' => 0.00, 'currency' => 'LYD']
-            );
-
             $amount = (float) $validated['amount'];
             $paymentMethodId = $validated['payment_method_id'] ?? 1; // Default to Credit Card / Wallet Transfer
             $referenceNumber = 'TRX-' . strtoupper(Str::random(8));
 
-            // Check if sender has sufficient balance
-            if (!$wallet->hasSufficientBalance($amount)) {
-                $available = number_format($wallet->available_balance, 2);
+            // Check if sender has sufficient balance via bavix/laravel-wallet
+            if (!$user->canWithdrawFloat($amount)) {
+                $available = number_format((float)$user->balanceFloat, 2);
                 $reqAmt = number_format($amount, 2);
                 $rejectionReason = "Auto-rejected: Insufficient wallet balance. (Available: LYD {$available}, Requested: LYD {$reqAmt})";
 
@@ -100,8 +94,8 @@ class TransactionController extends Controller
                     'message'           => 'Transaction auto-rejected due to insufficient wallet balance.',
                     'status'            => 'rejected',
                     'rejection_reason'  => $rejectionReason,
-                    'available_balance' => $wallet->available_balance,
-                    'currency'          => $wallet->currency,
+                    'available_balance' => (float)$user->balanceFloat,
+                    'currency'          => 'LYD',
                     'data'              => $transaction->load(['citizen', 'recipientCitizen', 'paymentMethod']),
                 ], 422);
             }
@@ -124,8 +118,8 @@ class TransactionController extends Controller
             return response()->json([
                 'message'           => 'Transfer submitted successfully. Pending administrator approval.',
                 'status'            => 'pending',
-                'sender_balance'    => $wallet->available_balance,
-                'currency'          => $wallet->currency,
+                'sender_balance'    => (float)$user->balanceFloat,
+                'currency'          => 'LYD',
                 'data'              => $transaction->load(['citizen', 'recipientCitizen', 'paymentMethod']),
             ], 201);
         });

@@ -178,13 +178,13 @@ class DashboardController extends Controller
         return \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $transaction, $request) {
             $senderCitizen = $transaction->citizen;
             $senderUser = $senderCitizen?->user;
-            $senderWallet = $senderUser?->wallet;
             $amount = (float) $transaction->amount;
 
             if ($validated['action'] === 'accept') {
-                // Verify sender still has sufficient balance before finalizing
-                if ($senderWallet && !$senderWallet->hasSufficientBalance($amount)) {
-                    $rejectionReason = "Auto-rejected on review: Sender balance became insufficient (Available: LYD {$senderWallet->available_balance}, Required: LYD {$amount}).";
+                // Verify sender still has sufficient balance via bavix
+                if ($senderUser && !$senderUser->canWithdrawFloat($amount)) {
+                    $available = number_format((float)$senderUser->balanceFloat, 2);
+                    $rejectionReason = "Auto-rejected on review: Sender balance became insufficient (Available: LYD {$available}, Required: LYD {$amount}).";
 
                     $transaction->update([
                         'status'           => 'rejected',
@@ -204,30 +204,24 @@ class DashboardController extends Controller
                     return redirect()->back()->with('error', "Cannot accept transaction: Sender has insufficient balance.");
                 }
 
-                // If transfer to another citizen, transfer funds atomically
+                // If transfer to another citizen, transfer funds atomically via bavix
                 if ($transaction->recipient_citizen_id && $transaction->recipientCitizen?->user) {
                     $recipientUser = $transaction->recipientCitizen->user;
-                    $recipientWallet = $recipientUser->wallet()->firstOrCreate(
-                        ['user_id' => $recipientUser->id],
-                        ['balance' => 0.00, 'currency' => 'LYD']
-                    );
 
-                    if ($senderWallet) {
-                        $senderWallet->transferTo(
-                            $recipientWallet,
+                    if ($senderUser) {
+                        $senderUser->transferFloat(
+                            $recipientUser,
                             $amount,
-                            "Transfer from {$senderUser->name} (Ref: {$transaction->unique_reference_number})",
-                            $transaction->unique_reference_number
+                            ['unique_reference_number' => $transaction->unique_reference_number, 'description' => "Transfer to {$recipientUser->name}"]
                         );
                     }
 
                     $auditDetails = "Transaction {$transaction->unique_reference_number} accepted. Transferred LYD {$amount} from {$senderUser->name} to {$recipientUser->name}.";
-                } elseif ($senderWallet) {
-                    // Direct payment: deduct from sender
-                    $senderWallet->withdraw(
+                } elseif ($senderUser) {
+                    // Direct payment: withdraw from sender via bavix
+                    $senderUser->withdrawFloat(
                         $amount,
-                        "Payment accepted (Ref: {$transaction->unique_reference_number})",
-                        $transaction->unique_reference_number
+                        ['unique_reference_number' => $transaction->unique_reference_number, 'description' => 'Payment accepted']
                     );
                     $auditDetails = "Transaction {$transaction->unique_reference_number} accepted. LYD {$amount} debited from {$senderUser->name}.";
                 } else {

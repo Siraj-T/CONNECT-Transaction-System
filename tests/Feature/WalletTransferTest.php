@@ -36,7 +36,7 @@ class WalletTransferTest extends TestCase
             'phone' => '+218919876543',
         ]);
         $this->sender->assignRole('citizen');
-        $this->sender->wallet()->create(['balance' => 5000.00, 'currency' => 'LYD']);
+        $this->sender->depositFloat(5000.00);
         Citizen::create(['user_id' => $this->sender->id, 'name' => $this->sender->name, 'phone_number' => $this->sender->phone]);
 
         $this->recipient = User::factory()->create([
@@ -45,7 +45,7 @@ class WalletTransferTest extends TestCase
             'phone' => '+218912345678',
         ]);
         $this->recipient->assignRole('citizen');
-        $this->recipient->wallet()->create(['balance' => 2000.00, 'currency' => 'LYD']);
+        $this->recipient->depositFloat(2000.00);
         Citizen::create(['user_id' => $this->recipient->id, 'name' => $this->recipient->name, 'phone_number' => $this->recipient->phone]);
     }
 
@@ -57,7 +57,7 @@ class WalletTransferTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJson([
-            'balance'  => '5000.00',
+            'balance'  => 5000.00,
             'currency' => 'LYD',
         ]);
     }
@@ -81,15 +81,15 @@ class WalletTransferTest extends TestCase
 
         // Verify transaction saved as rejected in DB
         $this->assertDatabaseHas('transactions', [
-            'amount'           => '8000.00',
-            'status'           => 'rejected',
-            'citizen_id'       => $this->sender->citizen->id,
+            'amount'               => '8000.00',
+            'status'               => 'rejected',
+            'citizen_id'           => $this->sender->citizen->id,
             'recipient_citizen_id' => $recipientCitizen->id,
         ]);
 
         // Balances remain untouched
-        $this->assertEquals(5000.00, $this->sender->wallet->fresh()->balance);
-        $this->assertEquals(2000.00, $this->recipient->wallet->fresh()->balance);
+        $this->assertEquals(5000.00, (float)$this->sender->fresh()->balanceFloat);
+        $this->assertEquals(2000.00, (float)$this->recipient->fresh()->balanceFloat);
     }
 
     public function test_transfer_is_pending_if_sufficient_balance()
@@ -110,9 +110,9 @@ class WalletTransferTest extends TestCase
         ]);
 
         $this->assertDatabaseHas('transactions', [
-            'amount'           => '1500.00',
-            'status'           => 'pending',
-            'citizen_id'       => $this->sender->citizen->id,
+            'amount'               => '1500.00',
+            'status'               => 'pending',
+            'citizen_id'           => $this->sender->citizen->id,
             'recipient_citizen_id' => $recipientCitizen->id,
         ]);
     }
@@ -138,22 +138,9 @@ class WalletTransferTest extends TestCase
 
         $acceptRes->assertRedirect();
 
-        // Balances updated
-        $this->assertEquals(4000.00, (float)$this->sender->wallet->fresh()->balance);
-        $this->assertEquals(3000.00, (float)$this->recipient->wallet->fresh()->balance);
-
-        // Double-entry ledgers recorded
-        $this->assertDatabaseHas('wallet_ledgers', [
-            'wallet_id' => $this->sender->wallet->id,
-            'type'      => 'transfer_out',
-            'amount'    => '1000.00',
-        ]);
-
-        $this->assertDatabaseHas('wallet_ledgers', [
-            'wallet_id' => $this->recipient->wallet->id,
-            'type'      => 'transfer_in',
-            'amount'    => '1000.00',
-        ]);
+        // Balances updated via bavix/laravel-wallet
+        $this->assertEquals(4000.00, (float)$this->sender->fresh()->balanceFloat);
+        $this->assertEquals(3000.00, (float)$this->recipient->fresh()->balanceFloat);
     }
 
     public function test_admin_rejects_transfer_and_balances_remain_unchanged()
@@ -179,8 +166,8 @@ class WalletTransferTest extends TestCase
         $rejectRes->assertRedirect();
 
         // Balances unchanged
-        $this->assertEquals(5000.00, (float)$this->sender->wallet->fresh()->balance);
-        $this->assertEquals(2000.00, (float)$this->recipient->wallet->fresh()->balance);
+        $this->assertEquals(5000.00, (float)$this->sender->fresh()->balanceFloat);
+        $this->assertEquals(2000.00, (float)$this->recipient->fresh()->balanceFloat);
 
         // Transaction status marked as rejected with reason
         $this->assertEquals('rejected', $transaction->fresh()->status);

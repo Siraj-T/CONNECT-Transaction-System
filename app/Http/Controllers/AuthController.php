@@ -116,8 +116,17 @@ class AuthController extends Controller
      */
     public function apiMe(Request $request): JsonResponse
     {
+        $user = $request->user();
         return response()->json([
-            'user' => $request->user()->load(['citizen', 'wallet']),
+            'user' => [
+                'id'            => $user->id,
+                'name'          => $user->name,
+                'email'         => $user->email,
+                'phone'         => $user->phone,
+                'balance'       => (float) $user->balanceFloat,
+                'currency'      => 'LYD',
+                'citizen'       => $user->citizen,
+            ],
         ], 200);
     }
 
@@ -127,16 +136,13 @@ class AuthController extends Controller
     public function apiWallet(Request $request): JsonResponse
     {
         $user = $request->user();
-        $wallet = $user->wallet()->firstOrCreate(
-            ['user_id' => $user->id],
-            ['balance' => 0.00, 'currency' => 'LYD']
-        );
 
         return response()->json([
-            'wallet'  => $wallet->load('ledgers'),
-            'balance' => $wallet->balance,
-            'available_balance' => $wallet->available_balance,
-            'currency' => $wallet->currency,
+            'wallet'            => $user->wallet,
+            'balance'           => (float) $user->balanceFloat,
+            'available_balance' => (float) $user->balanceFloat,
+            'currency'          => 'LYD',
+            'transactions'      => $user->transactions()->orderByDesc('id')->take(10)->get(),
         ], 200);
     }
 }

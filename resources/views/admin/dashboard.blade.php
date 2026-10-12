@@ -147,9 +147,9 @@
                                     <div style="font-weight: 600;">{{ $txn->citizen->name ?? 'Citizen' }}</div>
                                     <div style="font-size: 11px; color: var(--color-text-muted);">
                                         {{ $txn->citizen->phone_number ?? '—' }}
-                                        @if($txn->citizen?->user?->wallet)
+                                        @if($txn->citizen?->user)
                                             <span style="display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: 4px; background: rgba(0, 113, 227, 0.08); color: var(--color-primary); font-weight: 600;">
-                                                Bal: LYD {{ number_format($txn->citizen->user->wallet->balance, 2) }}
+                                                Bal: LYD {{ number_format((float)($txn->citizen->user->balanceFloat ?? 0), 2) }}
                                             </span>
                                         @endif
                                     </div>
