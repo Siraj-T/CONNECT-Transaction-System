@@ -51,6 +51,11 @@ class User extends Authenticatable
         return $this->hasOne(Citizen::class);
     }
 
+    public function wallet(): HasOne
+    {
+        return $this->hasOne(Wallet::class);
+    }
+
     // ─── Helpers ────────────────────────────────────────────────────────────────
 
     public function isAdmin(): bool

@@ -112,12 +112,31 @@ class AuthController extends Controller
     }
 
     /**
-     * Return authenticated citizen profile.
+     * Return authenticated citizen profile with wallet and citizen data.
      */
     public function apiMe(Request $request): JsonResponse
     {
         return response()->json([
-            'user' => $request->user()->load('citizen'),
+            'user' => $request->user()->load(['citizen', 'wallet']),
+        ], 200);
+    }
+
+    /**
+     * Return authenticated citizen wallet and transaction ledgers.
+     */
+    public function apiWallet(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $wallet = $user->wallet()->firstOrCreate(
+            ['user_id' => $user->id],
+            ['balance' => 0.00, 'currency' => 'LYD']
+        );
+
+        return response()->json([
+            'wallet'  => $wallet->load('ledgers'),
+            'balance' => $wallet->balance,
+            'available_balance' => $wallet->available_balance,
+            'currency' => $wallet->currency,
         ], 200);
     }
 }

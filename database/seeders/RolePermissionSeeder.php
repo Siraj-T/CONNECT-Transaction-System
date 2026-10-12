@@ -72,6 +72,19 @@ class RolePermissionSeeder extends Seeder
             ['phone_number' => $citizen1->phone],
             ['user_id' => $citizen1->id, 'name' => $citizen1->name]
         );
+        $wallet1 = \App\Models\Wallet::firstOrCreate(
+            ['user_id' => $citizen1->id],
+            ['balance' => 5000.00, 'currency' => 'LYD']
+        );
+        if ($wallet1->wasRecentlyCreated || $wallet1->ledgers()->count() === 0) {
+            $wallet1->update(['balance' => 5000.00]);
+            $wallet1->ledgers()->create([
+                'type' => 'deposit',
+                'amount' => 5000.00,
+                'balance_after' => 5000.00,
+                'description' => 'Initial seeded citizen wallet balance',
+            ]);
+        }
 
         // Create secondary citizen user (Ahmed Mohamed)
         $citizen2 = User::firstOrCreate(
@@ -89,38 +102,57 @@ class RolePermissionSeeder extends Seeder
             ['phone_number' => $citizen2->phone],
             ['user_id' => $citizen2->id, 'name' => $citizen2->name]
         );
+        $wallet2 = \App\Models\Wallet::firstOrCreate(
+            ['user_id' => $citizen2->id],
+            ['balance' => 3500.00, 'currency' => 'LYD']
+        );
+        if ($wallet2->wasRecentlyCreated || $wallet2->ledgers()->count() === 0) {
+            $wallet2->update(['balance' => 3500.00]);
+            $wallet2->ledgers()->create([
+                'type' => 'deposit',
+                'amount' => 3500.00,
+                'balance_after' => 3500.00,
+                'description' => 'Initial seeded citizen wallet balance',
+            ]);
+        }
 
-        // 5 Extra Libyan Citizen Accounts
+        // 6 Extra Libyan Citizen Accounts with seeded wallet balances
         $libyanCitizens = [
             [
-                'name'  => 'Omar Al-Warfali',
-                'email' => 'omar@citizen.ly',
-                'phone' => '+218912345678',
+                'name'    => 'Omar Al-Warfali',
+                'email'   => 'omar@citizen.ly',
+                'phone'   => '+218912345678',
+                'balance' => 7500.00,
             ],
             [
-                'name'  => 'Fatima Al-Zintani',
-                'email' => 'fatima@citizen.ly',
-                'phone' => '+218923456789',
+                'name'    => 'Fatima Al-Zintani',
+                'email'   => 'fatima@citizen.ly',
+                'phone'   => '+218923456789',
+                'balance' => 4200.00,
             ],
             [
-                'name'  => 'Tarek Ben Ali',
-                'email' => 'tarek@citizen.ly',
-                'phone' => '+218917654321',
+                'name'    => 'Tarek Ben Ali',
+                'email'   => 'tarek@citizen.ly',
+                'phone'   => '+218917654321',
+                'balance' => 6000.00,
             ],
             [
-                'name'  => 'Mariam Al-Tarhuni',
-                'email' => 'mariam@citizen.ly',
-                'phone' => '+218928765432',
+                'name'    => 'Mariam Al-Tarhuni',
+                'email'   => 'mariam@citizen.ly',
+                'phone'   => '+218928765432',
+                'balance' => 8500.00,
             ],
             [
-                'name'  => 'Yousef Al-Misrati',
-                'email' => 'yousef@citizen.ly',
-                'phone' => '+218945678901',
+                'name'    => 'Yousef Al-Misrati',
+                'email'   => 'yousef@citizen.ly',
+                'phone'   => '+218945678901',
+                'balance' => 3000.00,
             ],
             [
-                'name'  => 'Siraj Ashraf',
-                'email' => 'siraj@gmail.com',
-                'phone' => '+218919876543',
+                'name'    => 'Siraj Ashraf',
+                'email'   => 'siraj@gmail.com',
+                'phone'   => '+218919876543',
+                'balance' => 10000.00,
             ],
         ];
 
@@ -141,6 +173,21 @@ class RolePermissionSeeder extends Seeder
                 ['phone_number' => $data['phone']],
                 ['user_id' => $user->id, 'name' => $data['name']]
             );
+
+            $wallet = \App\Models\Wallet::firstOrCreate(
+                ['user_id' => $user->id],
+                ['balance' => $data['balance'], 'currency' => 'LYD']
+            );
+
+            if ($wallet->wasRecentlyCreated || $wallet->ledgers()->count() === 0) {
+                $wallet->update(['balance' => $data['balance']]);
+                $wallet->ledgers()->create([
+                    'type'             => 'deposit',
+                    'amount'           => $data['balance'],
+                    'balance_after'    => $data['balance'],
+                    'description'      => 'Initial seeded citizen wallet balance',
+                ]);
+            }
         }
     }
 }

@@ -12,7 +12,10 @@ class Transaction extends Model
         'amount',
         'status',
         'citizen_id',
+        'recipient_citizen_id',
         'payment_method_id',
+        'type',
+        'rejection_reason',
         'admin_id',
     ];
 
@@ -25,7 +28,12 @@ class Transaction extends Model
 
     public function citizen(): BelongsTo
     {
-        return $this->belongsTo(Citizen::class);
+        return $this->belongsTo(Citizen::class, 'citizen_id');
+    }
+
+    public function recipientCitizen(): BelongsTo
+    {
+        return $this->belongsTo(Citizen::class, 'recipient_citizen_id');
     }
 
     public function paymentMethod(): BelongsTo

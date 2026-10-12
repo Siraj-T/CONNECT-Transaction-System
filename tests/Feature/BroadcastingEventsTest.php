@@ -37,6 +37,7 @@ class BroadcastingEventsTest extends TestCase
             'phone' => '+1555000111',
         ]);
         $user->assignRole('citizen');
+        $user->wallet()->create(['balance' => 1000.00, 'currency' => 'LYD']);
 
         Sanctum::actingAs($user);
 
@@ -50,6 +51,36 @@ class BroadcastingEventsTest extends TestCase
         Event::assertDispatched(TransactionCreated::class, function ($event) use ($user) {
             return $event->transaction->amount == 500
                 && $event->transaction->citizen->name === 'John Doe';
+        });
+    }
+
+    public function test_transaction_is_auto_rejected_when_wallet_balance_is_insufficient()
+    {
+        Event::fake([TransactionCreated::class]);
+
+        $user = User::factory()->create([
+            'name'  => 'Bob Builder',
+            'email' => 'bob@test.com',
+            'phone' => '+1555000222',
+        ]);
+        $user->assignRole('citizen');
+        $user->wallet()->create(['balance' => 100.00, 'currency' => 'LYD']);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/transactions', [
+            'amount'            => 500,
+            'payment_method_id' => 1,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJson([
+            'status' => 'rejected',
+        ]);
+        $this->assertStringContainsString('Auto-rejected: Insufficient wallet balance', $response->json('rejection_reason'));
+
+        Event::assertDispatched(TransactionCreated::class, function ($event) {
+            return $event->transaction->status === 'rejected';
         });
     }
 

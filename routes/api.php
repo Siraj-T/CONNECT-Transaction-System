@@ -10,6 +10,7 @@ Route::post('/login', [AuthController::class, 'apiLogin'])->name('api.login');
 // Protected Routes (Sanctum Bearer Token Required)
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/transactions', [TransactionController::class, 'store'])->name('api.transactions.store');
+    Route::get('/wallet', [AuthController::class, 'apiWallet'])->name('api.wallet');
     Route::post('/logout', [AuthController::class, 'apiLogout'])->name('api.logout');
     Route::get('/me', [AuthController::class, 'apiMe'])->name('api.me');
 });

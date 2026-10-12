@@ -15,7 +15,7 @@ class TransactionCreated implements ShouldBroadcastNow
 
     public function __construct(public Transaction $transaction)
     {
-        $this->transaction->loadMissing(['citizen', 'paymentMethod']);
+        $this->transaction->loadMissing(['citizen', 'recipientCitizen', 'paymentMethod']);
     }
 
     public function broadcastOn(): array
@@ -43,22 +43,24 @@ class TransactionCreated implements ShouldBroadcastNow
 
         return [
             'transaction' => [
-                'id' => $this->transaction->id,
-                'reference' => $this->transaction->unique_reference_number,
-                'citizen_name' => $this->transaction->citizen->name,
-                'citizen_phone' => $this->transaction->citizen->phone_number,
-                'payment_method' => $this->transaction->paymentMethod->name,
-                'amount' => number_format((float) $this->transaction->amount, 2),
-                'status' => $this->transaction->status,
-                'created_at' => $this->transaction->created_at->format('M d, Y H:i'),
-                'update_url' => route('admin.transactions.status.update', $this->transaction),
+                'id'               => $this->transaction->id,
+                'reference'        => $this->transaction->unique_reference_number,
+                'citizen_name'     => $this->transaction->citizen->name ?? 'Citizen',
+                'citizen_phone'    => $this->transaction->citizen->phone_number ?? '—',
+                'recipient_name'   => $this->transaction->recipientCitizen->name ?? 'Direct Payment',
+                'payment_method'   => $this->transaction->paymentMethod->name ?? 'Wallet',
+                'amount'           => number_format((float) $this->transaction->amount, 2),
+                'status'           => $this->transaction->status,
+                'rejection_reason' => $this->transaction->rejection_reason,
+                'created_at'       => $this->transaction->created_at->format('M d, Y H:i'),
+                'update_url'       => route('admin.transactions.status.update', $this->transaction),
             ],
             'metrics' => [
-                'totalRevenue' => '$' . number_format((float) ($metrics->total_revenue ?? 0), 2),
+                'totalRevenue'        => 'LYD ' . number_format((float) ($metrics->total_revenue ?? 0), 2),
                 'pendingTransactions' => number_format((int) ($metrics->pending_count ?? 0)),
-                'acceptedTransactions' => number_format((int) ($metrics->accepted_count ?? 0)),
-                'rejectedTransactions' => number_format((int) ($metrics->rejected_count ?? 0)),
-                'totalCount' => number_format($totalTransactions),
+                'acceptedTransactions'=> number_format((int) ($metrics->accepted_count ?? 0)),
+                'rejectedTransactions'=> number_format((int) ($metrics->rejected_count ?? 0)),
+                'totalCount'          => number_format($totalTransactions),
             ],
         ];
     }

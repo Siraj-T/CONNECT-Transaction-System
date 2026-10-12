@@ -17,6 +17,16 @@ class Citizen extends Model
 
     public function transactions(): HasMany
     {
-        return $this->hasMany(Transaction::class);
+        return $this->hasMany(Transaction::class, 'citizen_id');
+    }
+
+    public function receivedTransactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class, 'recipient_citizen_id');
+    }
+
+    public function wallet()
+    {
+        return $this->hasOneThrough(Wallet::class, User::class, 'id', 'user_id', 'user_id', 'id');
     }
 }

@@ -98,7 +98,7 @@
             <div class="grid-2x2" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 24px;">
                 <div class="card">
                     <div class="text-sm font-semibold text-muted mb-2">Total Accepted Volume</div>
-                    <div class="text-3xl font-bold" id="metricTotalRevenue">${{ number_format($totalRevenue, 2) }}</div>
+                    <div class="text-3xl font-bold" id="metricTotalRevenue">LYD {{ number_format($totalRevenue, 2) }}</div>
                 </div>
                 
                 <div class="card">
@@ -129,8 +129,8 @@
                         <thead>
                             <tr>
                                 <th>Reference</th>
-                                <th>Sender Name</th>
-                                <th>Phone</th>
+                                <th>Sender (Citizen)</th>
+                                <th>Recipient</th>
                                 <th>Payment Method</th>
                                 <th>Amount</th>
                                 <th>Status</th>
@@ -143,18 +143,40 @@
                             @forelse($recentTransactions as $txn)
                             <tr>
                                 <td class="font-semibold">{{ $txn->unique_reference_number }}</td>
-                                <td>{{ $txn->citizen->name }}</td>
-                                <td>{{ $txn->citizen->phone_number }}</td>
+                                <td>
+                                    <div style="font-weight: 600;">{{ $txn->citizen->name ?? 'Citizen' }}</div>
+                                    <div style="font-size: 11px; color: var(--color-text-muted);">
+                                        {{ $txn->citizen->phone_number ?? '—' }}
+                                        @if($txn->citizen?->user?->wallet)
+                                            <span style="display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: 4px; background: rgba(0, 113, 227, 0.08); color: var(--color-primary); font-weight: 600;">
+                                                Bal: LYD {{ number_format($txn->citizen->user->wallet->balance, 2) }}
+                                            </span>
+                                        @endif
+                                    </div>
+                                </td>
+                                <td>
+                                    @if($txn->recipientCitizen)
+                                        <div style="font-weight: 600; color: #0284c7;">{{ $txn->recipientCitizen->name }}</div>
+                                        <div style="font-size: 11px; color: var(--color-text-muted);">{{ $txn->recipientCitizen->phone_number }}</div>
+                                    @else
+                                        <span class="text-muted text-sm">— Direct Payment —</span>
+                                    @endif
+                                </td>
                                 <td>
                                     <span class="badge" style="background: #eef2f7; color: #475569;">
-                                        {{ $txn->paymentMethod->name }}
+                                        {{ $txn->paymentMethod->name ?? 'Wallet' }}
                                     </span>
                                 </td>
-                                <td class="font-bold">${{ number_format($txn->amount, 2) }}</td>
+                                <td class="font-bold">LYD {{ number_format($txn->amount, 2) }}</td>
                                 <td>
                                     <span class="badge badge-{{ $txn->status === 'accepted' ? 'success' : ($txn->status === 'rejected' ? 'danger' : 'primary') }}">
                                         {{ ucfirst($txn->status) }}
                                     </span>
+                                    @if($txn->rejection_reason)
+                                        <div style="font-size: 11px; color: var(--color-danger); max-width: 220px; line-height: 1.25; margin-top: 4px; word-break: break-word;" title="{{ $txn->rejection_reason }}">
+                                            {{ Str::limit($txn->rejection_reason, 48) }}
+                                        </div>
+                                    @endif
                                 </td>
                                 <td class="text-muted">{{ $txn->created_at->format('M d, Y H:i') }}</td>
                                 <td class="text-right" style="white-space: nowrap;">
@@ -164,7 +186,7 @@
                                             @csrf
                                             @method('PUT')
                                             <input type="hidden" name="action" value="accept">
-                                            <button type="submit" class="action-btn action-btn-accept" title="Accept Transaction" aria-label="Accept Transaction">
+                                            <button type="submit" class="action-btn action-btn-accept" title="Accept & Execute Transfer" aria-label="Accept & Execute Transfer">
                                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                                     <polyline points="20 6 9 17 4 12"></polyline>
                                                 </svg>
@@ -321,24 +343,34 @@
                             elTbody.innerHTML = '';
                         }
 
+                        const isRejected = txn.status === 'rejected';
                         const newTr = document.createElement('tr');
-                        newTr.style.background = '#f0fdf4';
+                        newTr.style.background = isRejected ? '#fef2f2' : '#f0fdf4';
                         newTr.style.transition = 'background 1.5s ease';
                         newTr.innerHTML = `
                             <td class="font-semibold">${txn.reference}</td>
-                            <td>${txn.citizen_name}</td>
-                            <td>${txn.citizen_phone}</td>
+                            <td>
+                                <div style="font-weight: 600;">${txn.citizen_name}</div>
+                                <div style="font-size: 11px; color: var(--color-text-muted);">${txn.citizen_phone}</div>
+                            </td>
+                            <td>
+                                <div style="font-weight: 600; color: #0284c7;">${txn.recipient_name}</div>
+                            </td>
                             <td><span class="badge" style="background: #eef2f7; color: #475569;">${txn.payment_method}</span></td>
-                            <td class="font-bold">$${txn.amount}</td>
-                            <td><span class="badge badge-primary">Pending</span></td>
+                            <td class="font-bold">LYD ${txn.amount}</td>
+                            <td>
+                                <span class="badge badge-${isRejected ? 'danger' : 'primary'}">${isRejected ? 'Rejected' : 'Pending'}</span>
+                                ${txn.rejection_reason ? `<div style="font-size: 11px; color: var(--color-danger); max-width: 220px; line-height: 1.25; margin-top: 4px;">${txn.rejection_reason}</div>` : ''}
+                            </td>
                             <td class="text-muted">${txn.created_at}</td>
                             <td class="text-right" style="white-space: nowrap;">
+                                ${!isRejected ? `
                                 <div style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px;">
                                     <form action="${txn.update_url}" method="POST" style="margin: 0; display: inline;">
                                         <input type="hidden" name="_token" value="${csrfToken}">
                                         <input type="hidden" name="_method" value="PUT">
                                         <input type="hidden" name="action" value="accept">
-                                        <button type="submit" class="action-btn action-btn-accept" title="Accept Transaction" aria-label="Accept Transaction">
+                                        <button type="submit" class="action-btn action-btn-accept" title="Accept & Execute Transfer" aria-label="Accept & Execute Transfer">
                                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                                 <polyline points="20 6 9 17 4 12"></polyline>
                                             </svg>
@@ -356,6 +388,7 @@
                                         </button>
                                     </form>
                                 </div>
+                                ` : `<span class="text-muted text-sm" style="font-weight: 500;">Auto-Rejected</span>`}
                             </td>
                         `;
                         elTbody.prepend(newTr);

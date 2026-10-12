@@ -24,7 +24,7 @@ class DashboardController extends Controller
         $acceptedTransactions = (int) ($metrics->accepted_count ?? 0);
         $rejectedTransactions = (int) ($metrics->rejected_count ?? 0);
                                     
-        $recentTransactions = Transaction::with(['citizen', 'paymentMethod'])
+        $recentTransactions = Transaction::with(['citizen.user.wallet', 'recipientCitizen.user.wallet', 'paymentMethod'])
             ->orderByDesc('created_at')
             ->paginate(15);
 
@@ -65,7 +65,7 @@ class DashboardController extends Controller
         ")->first();
 
         $page = max(1, (int) $request->query('page', 1));
-        $recentTransactions = Transaction::with(['citizen', 'paymentMethod'])
+        $recentTransactions = Transaction::with(['citizen.user.wallet', 'recipientCitizen.user.wallet', 'paymentMethod'])
             ->orderByDesc('created_at')
             ->paginate(15, ['*'], 'page', $page);
 
@@ -82,7 +82,7 @@ class DashboardController extends Controller
             'changed' => true,
             'version' => $version,
             'metrics' => [
-                'totalRevenue' => '$' . number_format((float) ($metrics->total_revenue ?? 0), 2),
+                'totalRevenue' => 'LYD ' . number_format((float) ($metrics->total_revenue ?? 0), 2),
                 'pendingTransactions' => number_format((int) ($metrics->pending_count ?? 0)),
                 'acceptedTransactions' => number_format((int) ($metrics->accepted_count ?? 0)),
                 'rejectedTransactions' => number_format((int) ($metrics->rejected_count ?? 0)),
@@ -167,25 +167,110 @@ class DashboardController extends Controller
     public function updateStatus(Request $request, Transaction $transaction)
     {
         $validated = $request->validate([
-            'action' => 'required|in:accept,reject'
+            'action' => 'required|in:accept,reject',
+            'reason' => 'nullable|string|max:500',
         ]);
 
-        $status = $validated['action'] === 'accept' ? 'accepted' : 'rejected';
+        if ($transaction->status !== 'pending') {
+            return redirect()->back()->with('error', "Transaction has already been {$transaction->status}.");
+        }
 
-        $transaction->update([
-            'status' => $status,
-            'admin_id' => auth()->id()
-        ]);
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $transaction, $request) {
+            $senderCitizen = $transaction->citizen;
+            $senderUser = $senderCitizen?->user;
+            $senderWallet = $senderUser?->wallet;
+            $amount = (float) $transaction->amount;
 
-        $auditLog = AuditLog::create([
-            'admin_id' => auth()->id(),
-            'action' => $status . '_transaction',
-            'reference_number' => $transaction->unique_reference_number,
-            'details' => "Transaction {$transaction->unique_reference_number} was {$status}."
-        ]);
+            if ($validated['action'] === 'accept') {
+                // Verify sender still has sufficient balance before finalizing
+                if ($senderWallet && !$senderWallet->hasSufficientBalance($amount)) {
+                    $rejectionReason = "Auto-rejected on review: Sender balance became insufficient (Available: LYD {$senderWallet->available_balance}, Required: LYD {$amount}).";
 
-        broadcast(new \App\Events\TransactionStatusUpdated($transaction, $auditLog));
+                    $transaction->update([
+                        'status'           => 'rejected',
+                        'rejection_reason' => $rejectionReason,
+                        'admin_id'         => auth()->id(),
+                    ]);
 
-        return redirect()->back()->with('success', "Transaction {$transaction->status} successfully.");
+                    $auditLog = AuditLog::create([
+                        'admin_id'         => auth()->id(),
+                        'action'           => 'reject_transaction',
+                        'reference_number' => $transaction->unique_reference_number,
+                        'details'          => "Transaction {$transaction->unique_reference_number} auto-rejected: Insufficient sender wallet balance."
+                    ]);
+
+                    broadcast(new \App\Events\TransactionStatusUpdated($transaction, $auditLog));
+
+                    return redirect()->back()->with('error', "Cannot accept transaction: Sender has insufficient balance.");
+                }
+
+                // If transfer to another citizen, transfer funds atomically
+                if ($transaction->recipient_citizen_id && $transaction->recipientCitizen?->user) {
+                    $recipientUser = $transaction->recipientCitizen->user;
+                    $recipientWallet = $recipientUser->wallet()->firstOrCreate(
+                        ['user_id' => $recipientUser->id],
+                        ['balance' => 0.00, 'currency' => 'LYD']
+                    );
+
+                    if ($senderWallet) {
+                        $senderWallet->transferTo(
+                            $recipientWallet,
+                            $amount,
+                            "Transfer from {$senderUser->name} (Ref: {$transaction->unique_reference_number})",
+                            $transaction->unique_reference_number
+                        );
+                    }
+
+                    $auditDetails = "Transaction {$transaction->unique_reference_number} accepted. Transferred LYD {$amount} from {$senderUser->name} to {$recipientUser->name}.";
+                } elseif ($senderWallet) {
+                    // Direct payment: deduct from sender
+                    $senderWallet->withdraw(
+                        $amount,
+                        "Payment accepted (Ref: {$transaction->unique_reference_number})",
+                        $transaction->unique_reference_number
+                    );
+                    $auditDetails = "Transaction {$transaction->unique_reference_number} accepted. LYD {$amount} debited from {$senderUser->name}.";
+                } else {
+                    $auditDetails = "Transaction {$transaction->unique_reference_number} was accepted.";
+                }
+
+                $transaction->update([
+                    'status'   => 'accepted',
+                    'admin_id' => auth()->id(),
+                ]);
+
+                $auditLog = AuditLog::create([
+                    'admin_id'         => auth()->id(),
+                    'action'           => 'accept_transaction',
+                    'reference_number' => $transaction->unique_reference_number,
+                    'details'          => $auditDetails,
+                ]);
+
+                broadcast(new \App\Events\TransactionStatusUpdated($transaction, $auditLog));
+
+                return redirect()->back()->with('success', "Transaction {$transaction->unique_reference_number} accepted and balances updated.");
+
+            } else {
+                // Reject transaction
+                $reason = $validated['reason'] ?? $request->input('reason', 'Rejected by Administrator.');
+
+                $transaction->update([
+                    'status'           => 'rejected',
+                    'rejection_reason' => $reason,
+                    'admin_id'         => auth()->id(),
+                ]);
+
+                $auditLog = AuditLog::create([
+                    'admin_id'         => auth()->id(),
+                    'action'           => 'reject_transaction',
+                    'reference_number' => $transaction->unique_reference_number,
+                    'details'          => "Transaction {$transaction->unique_reference_number} was rejected by admin. Reason: {$reason}"
+                ]);
+
+                broadcast(new \App\Events\TransactionStatusUpdated($transaction, $auditLog));
+
+                return redirect()->back()->with('success', "Transaction {$transaction->unique_reference_number} rejected.");
+            }
+        });
     }
 }

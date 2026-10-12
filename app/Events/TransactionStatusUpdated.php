@@ -65,7 +65,7 @@ class TransactionStatusUpdated implements ShouldBroadcastNow
                 'details' => $this->auditLog->details,
             ],
             'metrics' => [
-                'totalRevenue' => '$' . number_format((float) ($metrics->total_revenue ?? 0), 2),
+                'totalRevenue' => 'LYD ' . number_format((float) ($metrics->total_revenue ?? 0), 2),
                 'pendingTransactions' => number_format((int) ($metrics->pending_count ?? 0)),
                 'acceptedTransactions' => number_format((int) ($metrics->accepted_count ?? 0)),
                 'rejectedTransactions' => number_format((int) ($metrics->rejected_count ?? 0)),
