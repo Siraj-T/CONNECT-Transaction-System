@@ -117,6 +117,11 @@ class RolePermissionSeeder extends Seeder
                 'email' => 'yousef@citizen.ly',
                 'phone' => '+218945678901',
             ],
+            [
+                'name'  => 'Siraj Ashraf',
+                'email' => 'siraj@gmail.com',
+                'phone' => '+218919876543',
+            ],
         ];
 
         foreach ($libyanCitizens as $data) {
