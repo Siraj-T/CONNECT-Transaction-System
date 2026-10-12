@@ -80,31 +80,57 @@ erDiagram
     ROLES ||--o{ ROLE_HAS_PERMISSIONS : "grants"
     PERMISSIONS ||--o{ ROLE_HAS_PERMISSIONS : "defines"
 
-    USERS ||--o| WALLETS : "owns (user_id)"
-    WALLETS ||--o{ WALLET_LEDGERS : "contains audit trail (wallet_id)"
     USERS ||--o| CITIZENS : "links identity (user_id)"
     CITIZENS ||--o{ TRANSACTIONS : "submits as sender (citizen_id)"
     CITIZENS ||--o{ TRANSACTIONS : "receives as recipient (recipient_citizen_id)"
     PAYMENT_METHODS ||--o{ TRANSACTIONS : "used in (payment_method_id)"
 
+    USERS ||--o{ WALLETS : "holds polymorphic wallet (holder_type, holder_id)"
+    WALLETS ||--o{ WALLET_TRANSACTIONS : "records double-entry ledger entries (wallet_id)"
+    WALLET_TRANSACTIONS ||--o| TRANSFERS : "paired in (deposit_id, withdraw_id)"
+
     WALLETS {
         bigint id PK "Auto Increment"
-        bigint user_id FK,UK "Unique, references users(id) ON DELETE CASCADE"
-        decimal balance "Precision 15, Scale 2 (Default 0.00)"
-        decimal held_balance "Precision 15, Scale 2 (Default 0.00)"
-        string currency "Default LYD"
+        string holder_type "App\\Models\\User"
+        bigint holder_id "User primary key"
+        string name "Default wallet"
+        string slug UK "Unique per holder"
+        uuid uuid UK "RFC 4122 UUID"
+        text description "Nullable notes"
+        json meta "Key-value metadata"
+        decimal balance "Balance in smallest unit (scale 2)"
+        smallint decimal_places "Default 2"
         timestamp created_at
         timestamp updated_at
     }
 
-    WALLET_LEDGERS {
+    WALLET_TRANSACTIONS {
         bigint id PK "Auto Increment"
+        string payable_type "App\\Models\\User"
+        bigint payable_id "User primary key"
         bigint wallet_id FK "References wallets(id) ON DELETE CASCADE"
-        enum type "deposit, withdrawal, transfer_in, transfer_out, hold, release"
-        decimal amount "Precision 15, Scale 2"
-        decimal balance_after "Precision 15, Scale 2"
-        string reference_number "Nullable, TRX reference code"
-        text description "Nullable audit notes"
+        enum type "deposit, withdraw"
+        decimal amount "Ledger transaction amount"
+        boolean confirmed "Transaction finalization flag"
+        json meta "Metadata including TRX reference"
+        uuid uuid UK "Unique transaction identifier"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    TRANSFERS {
+        bigint id PK "Auto Increment"
+        string from_type "App\\Models\\User"
+        bigint from_id "Sender user ID"
+        string to_type "App\\Models\\User"
+        bigint to_id "Recipient user ID"
+        string status "transfer status"
+        string status_last "previous status"
+        bigint deposit_id FK "References wallet_transactions(id)"
+        bigint withdraw_id FK "References wallet_transactions(id)"
+        decimal discount "Transfer discount"
+        decimal fee "Transfer fee"
+        uuid uuid UK "RFC 4122 UUID"
         timestamp created_at
         timestamp updated_at
     }
@@ -216,7 +242,8 @@ erDiagram
 - **Purpose**: Stores demographic profiles of individuals submitting financial transactions.
 - **Attributes**:
   - `id` (BIGINT, PK, Auto-increment): Unique database identifier.
-  - `name` (VARCHAR 255, NOT NULL): The full legal name of the sender.
+  - `user_id` (BIGINT, FK -> users.id, UNIQUE, ON DELETE CASCADE): Identity relationship linking citizen profile to the user account.
+  - `name` (VARCHAR 255, NOT NULL): The full legal name of the citizen.
   - `phone_number` (VARCHAR 255, UNIQUE, NOT NULL): Standardized telephone number used as the citizen's unique identification key.
   - `created_at` / `updated_at` (TIMESTAMP): Creation and modification timestamps.
 
@@ -229,36 +256,84 @@ erDiagram
   - `created_at` / `updated_at` (TIMESTAMP).
 
 ### 3.3 `transactions`
-- **Purpose**: Central ledger recording financial movement requests, status transitions, and administrative resolutions.
+- **Purpose**: Central workflow ledger recording financial movement requests, status transitions, and administrative resolutions.
 - **Attributes**:
   - `id` (BIGINT, PK, Auto-increment): Internal surrogate key.
   - `unique_reference_number` (VARCHAR 255, UNIQUE, NOT NULL): High-entropy public tracking code (`TRX-` followed by 8 alphanumeric characters).
   - `amount` (DECIMAL(10,2), NOT NULL): Monetary quantity transferred.
   - `status` (ENUM('pending', 'accepted', 'rejected'), DEFAULT 'pending'): Workflow lifecycle state.
-  - `citizen_id` (BIGINT, FK -> citizens.id, CASCADE DELETE): Originating sender.
+  - `rejection_reason` (TEXT, NULLABLE): Descriptive explanation if rejected automatically (e.g. Insufficient Balance) or by admin.
+  - `citizen_id` (BIGINT, FK -> citizens.id, CASCADE DELETE): Originating sender citizen.
+  - `recipient_citizen_id` (BIGINT, NULLABLE, FK -> citizens.id, SET NULL): Target recipient citizen (if a peer-to-peer transfer).
   - `payment_method_id` (BIGINT, FK -> payment_methods.id, CASCADE DELETE): Selected payment rail.
-  - `admin_id` (BIGINT, NULLABLE, FK -> users.id, SET NULL): The administrator who processed the request (NULL while pending).
+  - `type` (VARCHAR 255, DEFAULT 'transfer'): Transaction categorization (`transfer` or `payment`).
+  - `admin_id` (BIGINT, NULLABLE, FK -> users.id, SET NULL): The administrator who reviewed and accepted/rejected the request (NULL while pending).
   - `created_at` / `updated_at` (TIMESTAMP).
 
 ### 3.4 `audit_logs`
 - **Purpose**: Non-repudiation audit journal providing an indelible ledger of all sensitive state manipulations.
 - **Attributes**:
   - `id` (BIGINT, PK, Auto-increment): Surrogate key.
-  - `admin_id` (BIGINT, FK -> users.id, CASCADE DELETE): Actor who initiated the status shift.
-  - `action` (VARCHAR 255, NOT NULL): Event classification (`accepted_transaction`, `rejected_transaction`).
+  - `admin_id` (BIGINT, FK -> users.id, CASCADE DELETE): Actor who initiated or authorized the status shift.
+  - `action` (VARCHAR 255, NOT NULL): Event classification (`accepted_transaction`, `rejected_transaction`, `auto_reject_transaction`).
   - `reference_number` (VARCHAR 255, NULLABLE): Cross-reference to transaction tracking ID.
   - `details` (TEXT, NULLABLE): Human and machine-readable description of the operation.
   - `created_at` / `updated_at` (TIMESTAMP).
 
 ### 3.5 `users`
-- **Purpose**: Internal enterprise operator accounts authorized to access the management interface.
+- **Purpose**: Unified account table for all platform identities (both web Administrators and API Citizens).
 - **Attributes**:
-  - `id` (BIGINT, PK): Unique operator ID.
-  - `name` (VARCHAR(100), NOT NULL): Operator display name.
+  - `id` (BIGINT, PK): Unique operator/citizen ID.
+  - `name` (VARCHAR(100), NOT NULL): Display name.
   - `email` (VARCHAR(255), UNIQUE, NOT NULL): Login credential.
   - `password` (VARCHAR(255), NOT NULL): Bcrypt/Argon2 hashed password.
+  - `phone` (VARCHAR(20), NULLABLE): Phone number supporting Libyan dialing format (`+2189...`).
   - `is_active` (BOOLEAN, DEFAULT true): Soft-disable switch enforced by `CheckUserActive` middleware.
-  - `avatar` (VARCHAR(255), NULLABLE): Custom photo path.
+  - `avatar` (VARCHAR(255), NULLABLE): Custom photo path or Gravatar fallback.
+  - `created_at` / `updated_at` (TIMESTAMP).
+
+### 3.6 `wallets` (`bavix/laravel-wallet`)
+- **Purpose**: Polymorphic wallet storage container maintained by the official `bavix/laravel-wallet` engine.
+- **Attributes**:
+  - `id` (BIGINT, PK, Auto-increment): Surrogate key.
+  - `holder_type` (VARCHAR 255): Polymorphic class namespace (`App\Models\User`).
+  - `holder_id` (BIGINT): Foreign identifier pointing to `users.id`.
+  - `name` (VARCHAR 255, DEFAULT 'Default'): Display label for the wallet.
+  - `slug` (VARCHAR 255, UNIQUE per holder): Normalized slug identifier (`default`).
+  - `uuid` (CHAR 36, UNIQUE): Globally unique RFC 4122 identifier.
+  - `description` (VARCHAR 255, NULLABLE): Descriptive wallet remarks.
+  - `meta` (JSON, NULLABLE): Arbitrary metadata attributes.
+  - `balance` (DECIMAL 64, 0, DEFAULT 0): Balance stored in smallest monetary subunit (with scale precision).
+  - `decimal_places` (SMALLINT, DEFAULT 2): Currency precision scalar (2 decimal places).
+  - `created_at` / `updated_at` (TIMESTAMP).
+
+### 3.7 `wallet_transactions` (`bavix/laravel-wallet`)
+- **Purpose**: Double-entry accounting ledger recording atomic debits and credits with nonces and immutability.
+- **Attributes**:
+  - `id` (BIGINT, PK, Auto-increment): Surrogate key.
+  - `payable_type` (VARCHAR 255): Polymorphic actor (`App\Models\User`).
+  - `payable_id` (BIGINT): User identifier.
+  - `wallet_id` (BIGINT, FK -> wallets.id, CASCADE DELETE): Assigned wallet container.
+  - `type` (ENUM('deposit', 'withdraw')): Ledger directionality (`deposit` = credit, `withdraw` = debit).
+  - `amount` (DECIMAL 64, 0): Numeric movement quantity.
+  - `confirmed` (BOOLEAN, DEFAULT true): State confirmation flag.
+  - `meta` (JSON, NULLABLE): Enriched metadata including `unique_reference_number` and audit remarks.
+  - `uuid` (CHAR 36, UNIQUE): Cryptographic transaction hash identifier.
+  - `created_at` / `updated_at` (TIMESTAMP).
+
+### 3.8 `transfers` (`bavix/laravel-wallet`)
+- **Purpose**: Relational mapping linking debit and credit ledger pairs into unified atomic transfers between users.
+- **Attributes**:
+  - `id` (BIGINT, PK, Auto-increment): Surrogate key.
+  - `from_type` / `from_id`: Polymorphic sender identity (`App\Models\User`).
+  - `to_type` / `to_id`: Polymorphic recipient identity (`App\Models\User`).
+  - `status` (VARCHAR 255, DEFAULT 'transfer'): State machine tag.
+  - `status_last` (VARCHAR 255, NULLABLE): Previous state machine tag.
+  - `deposit_id` (BIGINT, FK -> wallet_transactions.id): Credited ledger transaction reference.
+  - `withdraw_id` (BIGINT, FK -> wallet_transactions.id): Debited ledger transaction reference.
+  - `discount` / `fee` (DECIMAL 64, 0, DEFAULT 0): Fee calculations.
+  - `uuid` (CHAR 36, UNIQUE): RFC 4122 transfer identifier.
+  - `created_at` / `updated_at` (TIMESTAMP).
 
 ---
 
@@ -271,23 +346,39 @@ erDiagram
 3:  namespace App\Models;
 4:  
 5:  use Illuminate\Database\Eloquent\Model;
-6:  use Illuminate\Database\Eloquent\Relations\HasMany;
-7:  
-8:  class Citizen extends Model
-9:  {
-10:     protected $fillable = ['name', 'phone_number'];
-11: 
-12:     public function transactions(): HasMany
-13:     {
-14:         return $this->hasMany(Transaction::class);
-15:     }
-16: }
+6:  use Illuminate\Database\Eloquent\Relations\BelongsTo;
+7:  use Illuminate\Database\Eloquent\Relations\HasMany;
+8:  
+9:  class Citizen extends Model
+10: {
+11:     protected $fillable = ['user_id', 'name', 'phone_number'];
+12: 
+13:     public function user(): BelongsTo
+14:     {
+15:         return $this->belongsTo(User::class);
+16:     }
+17: 
+18:     public function transactions(): HasMany
+19:     {
+20:         return $this->hasMany(Transaction::class, 'citizen_id');
+21:     }
+22: 
+23:     public function receivedTransactions(): HasMany
+24:     {
+25:         return $this->hasMany(Transaction::class, 'recipient_citizen_id');
+26:     }
+27: 
+28:     public function getWalletAttribute()
+29:     {
+30:         return $this->user?->wallet;
+31:     }
+32: }
 ```
-- **Line 1-3**: PHP opening tag and PSR-4 namespace declaration for Eloquent models.
-- **Line 5-6**: Imports Eloquent's base `Model` class and the `HasMany` relation type hint.
-- **Line 8**: Declares the `Citizen` class extending Laravel's active record implementation.
-- **Line 10**: `$fillable` array whitelists `name` and `phone_number` for mass assignment, preventing mass-assignment vulnerabilities while enabling `Citizen::firstOrCreate()`.
-- **Line 12-15**: Defines the one-to-many relationship `transactions()`. One citizen can generate many transactions over time. Uses Eloquent convention matching `citizen_id` on the `transactions` table.
+- **Line 11**: `$fillable` array whitelists `user_id`, `name`, and `phone_number` for mass assignment, synchronizing demographic profiles directly with the `users` account.
+- **Line 13-16**: `user()` relationship: Links the citizen record back to their primary authenticated `User` account.
+- **Line 18-21**: `transactions()` relationship: One-to-many relation returning all transactions initiated by this citizen as the sender (`citizen_id`).
+- **Line 23-26**: `receivedTransactions()` relationship: One-to-many relation returning all transactions received by this citizen as the destination recipient (`recipient_citizen_id`).
+- **Line 28-31**: `getWalletAttribute()` accessor: Enables `$citizen->wallet` to seamlessly proxy to `$citizen->user->wallet` managed by `bavix/laravel-wallet`.
 
 ---
 
@@ -331,39 +422,47 @@ erDiagram
 12:         'amount',
 13:         'status',
 14:         'citizen_id',
-15:         'payment_method_id',
-16:         'admin_id',
-17:     ];
-18: 
-19:     protected function casts(): array
-20:     {
-21:         return [
-22:             'amount' => 'decimal:2',
-23:         ];
-24:     }
-25: 
-26:     public function citizen(): BelongsTo
-27:     {
-28:         return $this->belongsTo(Citizen::class);
-29:     }
-30: 
-31:     public function paymentMethod(): BelongsTo
-32:     {
-33:         return $this->belongsTo(PaymentMethod::class);
-34:     }
-35: 
-36:     public function admin(): BelongsTo
-37:     {
-38:         return $this->belongsTo(User::class, 'admin_id');
-39:     }
-40: }
+15:         'recipient_citizen_id',
+16:         'payment_method_id',
+17:         'type',
+18:         'rejection_reason',
+19:         'admin_id',
+20:     ];
+21: 
+22:     protected function casts(): array
+23:     {
+24:         return [
+25:             'amount' => 'decimal:2',
+26:         ];
+27:     }
+28: 
+29:     public function citizen(): BelongsTo
+30:     {
+31:         return $this->belongsTo(Citizen::class, 'citizen_id');
+32:     }
+33: 
+34:     public function recipientCitizen(): BelongsTo
+35:     {
+36:         return $this->belongsTo(Citizen::class, 'recipient_citizen_id');
+37:     }
+38: 
+39:     public function paymentMethod(): BelongsTo
+40:     {
+41:         return $this->belongsTo(PaymentMethod::class);
+42:     }
+43: 
+44:     public function admin(): BelongsTo
+45:     {
+46:         return $this->belongsTo(User::class, 'admin_id');
+47:     }
+48: }
 ```
-- **Line 6**: Imports `BelongsTo` relationship contract.
-- **Line 10-17**: `$fillable` array contains all transaction fields, allowing both API store creation (`citizen_id`, `amount`, `payment_method_id`) and admin resolution updates (`status`, `admin_id`).
-- **Line 19-24**: Laravel 11/12/13 native `casts()` method. Casts the monetary `amount` property to a fixed 2-decimal string/number, preventing floating point rounding anomalies.
-- **Line 26-29**: `citizen()` inverse relationship: returns the `Citizen` model tied to `citizen_id`.
-- **Line 31-34**: `paymentMethod()` inverse relationship: returns the `PaymentMethod` model tied to `payment_method_id`.
-- **Line 36-39**: `admin()` inverse relationship: explicitly points the foreign key `admin_id` to the `User` model, identifying the reviewing operator.
+- **Line 10-20**: `$fillable` array contains all transaction fields, supporting sender creation (`citizen_id`, `recipient_citizen_id`, `amount`, `payment_method_id`, `type`), auto-rejections (`rejection_reason`), and admin resolution updates (`status`, `admin_id`).
+- **Line 22-27**: Casts `amount` property to fixed 2-decimal scale.
+- **Line 29-32**: `citizen()` inverse relationship: returns the sending `Citizen` model tied to `citizen_id`.
+- **Line 34-37**: `recipientCitizen()` inverse relationship: returns the receiving `Citizen` model tied to `recipient_citizen_id`.
+- **Line 39-42**: `paymentMethod()` relationship: returns the payment method rail.
+- **Line 44-47**: `admin()` relationship: returns the administrative operator who reviewed the transaction.
 
 ---
 
@@ -391,7 +490,7 @@ erDiagram
 20:     }
 21: }
 ```
-- **Line 10-15**: Protects and whitelists audit record attributes: the operator ID (`admin_id`), action name (`action`), transaction tracking reference (`reference_number`), and narrative commentary (`details`).
+- **Line 10-15**: Whitelists operator ID (`admin_id`), action name (`action`), transaction tracking reference (`reference_number`), and narrative commentary (`details`).
 - **Line 17-20**: Defines `admin()` relationship, linking the log back to the administrator's `User` record.
 
 ---
@@ -402,25 +501,66 @@ erDiagram
 2:  
 3:  namespace App\Models;
 4:  
-5:  use Database\Factories\UserFactory;
-6:  use Illuminate\Database\Eloquent\Factories\HasFactory;
-7:  use Illuminate\Database\Eloquent\Relations\HasMany;
-8:  use Illuminate\Foundation\Auth\User as Authenticatable;
-9:  use Illuminate\Notifications\Notifiable;
-10: use Spatie\Permission\Traits\HasRoles;
-11: 
-12: class User extends Authenticatable
-13: {
-14:     use HasFactory, Notifiable, HasRoles;
-...
+5:  use Bavix\Wallet\Interfaces\Wallet;
+6:  use Bavix\Wallet\Interfaces\WalletFloat;
+7:  use Bavix\Wallet\Traits\HasWallet;
+8:  use Bavix\Wallet\Traits\HasWalletFloat;
+9:  use Database\Factories\UserFactory;
+10: use Illuminate\Database\Eloquent\Factories\HasFactory;
+11: use Illuminate\Database\Eloquent\Relations\HasMany;
+12: use Illuminate\Database\Eloquent\Relations\HasOne;
+13: use Illuminate\Foundation\Auth\User as Authenticatable;
+14: use Illuminate\Notifications\Notifiable;
+15: use Laravel\Sanctum\HasApiTokens;
+16: use Spatie\Permission\Traits\HasRoles;
+17: 
+18: class User extends Authenticatable implements Wallet, WalletFloat
+19: {
+20:     use HasApiTokens, HasFactory, Notifiable, HasRoles, HasWallet, HasWalletFloat;
+21: 
+22:     protected $fillable = [
+23:         'name',
+24:         'email',
+25:         'password',
+26:         'phone',
+27:         'is_active',
+28:         'avatar',
+29:     ];
+30: 
+31:     protected $hidden = [
+32:         'password',
+33:         'remember_token',
+34:     ];
+35: 
+36:     protected function casts(): array
+37:     {
+38:         return [
+39:             'email_verified_at' => 'datetime',
+40:             'password'          => 'hashed',
+41:             'is_active'         => 'boolean',
+42:         ];
+43:     }
+44: 
+45:     public function processedTransactions(): HasMany
+46:     {
+47:         return $this->hasMany(Transaction::class, 'admin_id');
+48:     }
+49: 
+50:     public function citizen(): HasOne
+51:     {
+52:         return $this->hasOne(Citizen::class);
+53:     }
+54: 
+55:     public function isAdmin(): bool
+56:     {
+57:         return $this->hasRole('admin');
+58:     }
+59: }
 ```
-- **Line 8**: Extends `Authenticatable`, allowing this model to be used as Laravel's native web guard identity.
-- **Line 10 & 14**: Uses `Spatie\Permission\Traits\HasRoles`, attaching dynamic RBAC methods like `hasRole('admin')`, `givePermissionTo()`, and `can()`.
-- **Line 17-24**: Whitelists operator attributes (`name`, `email`, `password`, `phone`, `is_active`, `avatar`).
-- **Line 26-29**: `$hidden` hides `password` hash and `remember_token` from JSON serialization.
-- **Line 31-38**: Casts `email_verified_at` to datetime, `password` to hashed (auto-hashing on write), and `is_active` to boolean.
-- **Line 42-45**: `processedTransactions()` returns all transactions resolved by this operator via `admin_id`.
-- **Line 49-52**: Helper `isAdmin()` returns boolean checking if user has the `admin` role.
+- **Line 18**: Implements `Bavix\Wallet\Interfaces\Wallet` and `Bavix\Wallet\Interfaces\WalletFloat`.
+- **Line 20**: Uses traits `HasWallet` and `HasWalletFloat` to power native double-entry ledger commands (`balanceFloat`, `depositFloat()`, `withdrawFloat()`, `transferFloat()`, `canWithdrawFloat()`).
+- **Line 20**: Uses `HasApiTokens` (Sanctum Bearer tokens) and `HasRoles` (Spatie RBAC).
+- **Line 50-53**: `citizen()` relationship: Direct one-to-one link to demographic profile in `citizens`.
 
 ---
 
@@ -448,71 +588,127 @@ erDiagram
 3:  namespace App\Http\Controllers\Api;
 4:  
 5:  use App\Http\Controllers\Controller;
-6:  use App\Models\Citizen;
-7:  use App\Models\Transaction;
-8:  use Illuminate\Http\Request;
-9:  use Illuminate\Support\Facades\DB;
-10: use Illuminate\Support\Str;
-11: 
-12: class TransactionController extends Controller
-13: {
-14:     public function store(Request $request)
-15:     {
-16:         $validated = $request->validate([
-17:             'amount'            => 'required|numeric|min:1',
-18:             'payment_method_id' => 'required|exists:payment_methods,id',
-19:         ]);
-20: 
-21:         $user = $request->user();
-22: 
-23:         return DB::transaction(function () use ($validated, $user) {
-24:             // Automatically pull and synchronize citizen profile from authenticated user
-25:             $phone = $user->phone ?: ($user->citizen->phone_number ?? ('+1' . str_pad((string)$user->id, 9, '0', STR_PAD_LEFT)));
-26:             
-27:             $citizen = Citizen::updateOrCreate(
-28:                 ['user_id' => $user->id],
-29:                 [
-30:                     'name'         => $user->name,
-31:                     'phone_number' => $phone,
-32:                 ]
-33:             );
-34: 
-35:             $transaction = Transaction::create([
-36:                 'unique_reference_number' => 'TRX-' . strtoupper(Str::random(8)),
-37:                 'amount'                  => $validated['amount'],
-38:                 'status'                  => 'pending',
-39:                 'citizen_id'              => $citizen->id,
-40:                 'payment_method_id'       => $validated['payment_method_id'],
-41:             ]);
-42: 
-43:             // Broadcast real-time WebSocket event via Laravel Reverb
-44:             broadcast(new \App\Events\TransactionCreated($transaction));
-45: 
-46:             return response()->json([
-47:                 'message' => 'Transaction submitted successfully',
-48:                 'data'    => $transaction->load(['citizen', 'paymentMethod'])
-49:             ], 201);
-50:         });
-51:     }
-52: }
+6:  use App\Models\AuditLog;
+7:  use App\Models\Citizen;
+8:  use App\Models\Transaction;
+9:  use App\Models\User;
+10: use Illuminate\Http\Request;
+11: use Illuminate\Support\Facades\DB;
+12: use Illuminate\Support\Str;
+13: 
+14: class TransactionController extends Controller
+15: {
+16:     public function store(Request $request)
+17:     {
+18:         $validated = $request->validate([
+19:             'amount'               => 'required|numeric|min:0.01',
+20:             'payment_method_id'    => 'nullable|exists:payment_methods,id',
+21:             'recipient_citizen_id' => 'nullable|exists:citizens,id',
+22:             'recipient_id'         => 'nullable|integer',
+23:             'recipient_email'      => 'nullable|email',
+24:             'recipient_phone'      => 'nullable|string',
+25:         ]);
+26: 
+27:         $user = $request->user();
+28: 
+29:         return DB::transaction(function () use ($validated, $user, $request) {
+30:             $phone = $user->phone ?: ($user->citizen->phone_number ?? ('+1' . str_pad((string)$user->id, 9, '0', STR_PAD_LEFT)));
+31: 
+32:             $senderCitizen = Citizen::updateOrCreate(
+33:                 ['user_id' => $user->id],
+34:                 [
+35:                     'name'         => $user->name,
+36:                     'phone_number' => $phone,
+37:                 ]
+38:             );
+39: 
+40:             $recipientCitizenId = $validated['recipient_citizen_id'] ?? $validated['recipient_id'] ?? null;
+41:             if (!$recipientCitizenId && $request->filled('recipient_email')) {
+42:                 $recipientUser = User::where('email', $request->input('recipient_email'))->first();
+43:                 $recipientCitizenId = $recipientUser?->citizen?->id;
+44:             }
+45:             if (!$recipientCitizenId && $request->filled('recipient_phone')) {
+46:                 $recipientCitizen = Citizen::where('phone_number', $request->input('recipient_phone'))->first();
+47:                 $recipientCitizenId = $recipientCitizen?->id;
+48:             }
+49: 
+50:             if ($recipientCitizenId && (int)$recipientCitizenId === (int)$senderCitizen->id) {
+51:                 return response()->json(['message' => 'Cannot transfer funds to yourself.'], 422);
+52:             }
+53: 
+54:             $amount = (float) $validated['amount'];
+55:             $paymentMethodId = $validated['payment_method_id'] ?? 1;
+56:             $referenceNumber = 'TRX-' . strtoupper(Str::random(8));
+57: 
+58:             // Balance verification via bavix/laravel-wallet
+59:             if (!$user->canWithdrawFloat($amount)) {
+60:                 $available = number_format((float)$user->balanceFloat, 2);
+61:                 $reqAmt = number_format($amount, 2);
+62:                 $rejectionReason = "Auto-rejected: Insufficient wallet balance. (Available: LYD {$available}, Requested: LYD {$reqAmt})";
+63: 
+64:                 $transaction = Transaction::create([
+65:                     'unique_reference_number' => $referenceNumber,
+66:                     'amount'                  => $amount,
+67:                     'status'                  => 'rejected',
+68:                     'rejection_reason'        => $rejectionReason,
+69:                     'citizen_id'              => $senderCitizen->id,
+70:                     'recipient_citizen_id'    => $recipientCitizenId,
+71:                     'payment_method_id'       => $paymentMethodId,
+72:                     'type'                    => $recipientCitizenId ? 'transfer' : 'payment',
+73:                 ]);
+74: 
+75:                 $systemAdmin = User::role('admin')->first();
+76:                 AuditLog::create([
+77:                     'admin_id'         => $systemAdmin?->id ?? 1,
+78:                     'action'           => 'auto_reject_transaction',
+79:                     'reference_number' => $transaction->unique_reference_number,
+80:                     'details'          => "Transaction auto-rejected due to insufficient balance. Sender: {$user->name} (#{$user->id}), Available: LYD {$available}, Requested: LYD {$reqAmt}."
+81:                 ]);
+82: 
+83:                 broadcast(new \App\Events\TransactionCreated($transaction));
+84: 
+85:                 return response()->json([
+86:                     'message'           => 'Transaction auto-rejected due to insufficient wallet balance.',
+87:                     'status'            => 'rejected',
+88:                     'rejection_reason'  => $rejectionReason,
+89:                     'available_balance' => (float)$user->balanceFloat,
+90:                     'currency'          => 'LYD',
+91:                     'data'              => $transaction->load(['citizen', 'recipientCitizen', 'paymentMethod']),
+92:                 ], 422);
+93:             }
+94: 
+95:             // Sufficient Balance: Create pending transaction
+96:             $transaction = Transaction::create([
+97:                 'unique_reference_number' => $referenceNumber,
+98:                 'amount'                  => $amount,
+99:                 'status'                  => 'pending',
+100:                'citizen_id'              => $senderCitizen->id,
+101:                'recipient_citizen_id'    => $recipientCitizenId,
+102:                'payment_method_id'       => $paymentMethodId,
+103:                'type'                    => $recipientCitizenId ? 'transfer' : 'payment',
+104:            ]);
+105: 
+106:            broadcast(new \App\Events\TransactionCreated($transaction));
+107: 
+108:            return response()->json([
+109:                'message' => 'Transaction submitted successfully and awaiting admin approval',
+110:                'data'    => $transaction->load(['citizen', 'recipientCitizen', 'paymentMethod']),
+111:            ], 201);
+112:        });
+113:    }
+114: }
 ```
-- **Line 14**: `store(Request $request)`: Protected Sanctum endpoint for `POST /api/transactions`. Requires valid `Authorization: Bearer <token>`.
-- **Line 16-19**: **Financial Validation**:
-  - `amount`: Mandatory numeric value, minimum `1.00`. Rejects zero, negative numbers, or invalid formats.
-  - `payment_method_id`: Mandatory foreign key, verified against `payment_methods.id`.
-  - *Notice:* The payload intentionally omits citizen names or phones to prevent tampering.
-- **Line 21**: `$user = $request->user()`: Extracts authenticated citizen from the verified Sanctum Bearer token.
-- **Line 23**: `DB::transaction(...)`: Encapsulates database writes in an atomic database transaction.
-- **Line 24-33**: **Profile Synchronization (`Citizen::updateOrCreate`)**:
-  - Automatically resolves citizen name and phone from the authenticated user profile.
-  - If the citizen updates their name or phone, the linked `citizens` record is permanently synchronized via `user_id`.
-- **Line 35-41**: **Transaction Instantiation**:
-  - Generates uppercase tracking code: `TRX-XXXXXXXX`.
-  - Sets initial `status = 'pending'`, links `citizen_id` and `payment_method_id`.
-- **Line 44**: **Instant Real-Time WebSocket Broadcast**:
-  - Dispatches `broadcast(new \App\Events\TransactionCreated($transaction))` immediately to **Laravel Reverb**.
-  - Pushes real-time row creation and refreshed KPI numbers to connected administrators.
-- **Line 46-49**: Returns HTTP `201 Created` with eager-loaded citizen and payment method relations.
+- **Line 59**: Checks if sender can withdraw requested amount using `$user->canWithdrawFloat($amount)` from `bavix/laravel-wallet`.
+- **Line 60-93 (Insufficient Balance Workflow)**:
+  - If sender does not have sufficient funds, immediately marks status as `'rejected'`.
+  - Sets descriptive `rejection_reason` showing available and requested sums.
+  - Generates immutable system audit log (`auto_reject_transaction`).
+  - Broadcasts `TransactionCreated` via Laravel Reverb WebSocket so admins see the auto-rejection live on screen.
+  - Returns **HTTP 422 Unprocessable Content**.
+- **Line 96-111 (Sufficient Balance Workflow)**:
+  - Creates transaction with status `'pending'`.
+  - Broadcasts `TransactionCreated` to Admin Dashboard.
+  - Returns **HTTP 201 Created**.
 
 ---
 
@@ -526,71 +722,110 @@ erDiagram
 6:  use App\Models\Transaction;
 7:  use App\Models\AuditLog;
 8:  use Illuminate\Http\Request;
-9:  
-10: class DashboardController extends Controller
-11: {
-12:     public function index()
-13:     {
-14:         // Compute real metrics
-15:         $totalRevenue = Transaction::where('status', 'accepted')->sum('amount');
-16:         
-17:         $pendingTransactions = Transaction::where('status', 'pending')->count();
-18:         $acceptedTransactions = Transaction::where('status', 'accepted')->count();
-19:         $rejectedTransactions = Transaction::where('status', 'rejected')->count();
-20:                                     
-21:         $recentTransactions = Transaction::with(['citizen', 'paymentMethod'])
-22:             ->orderByDesc('created_at')
-23:             ->paginate(15);
-24:                                          
-25:         return view('admin.dashboard', compact(
-26:             'totalRevenue', 
-27:             'pendingTransactions', 
-28:             'acceptedTransactions', 
-29:             'rejectedTransactions', 
-30:             'recentTransactions'
-31:         ));
-32:     }
-33: 
-34:     public function updateStatus(Request $request, Transaction $transaction)
-35:     {
-36:         $validated = $request->validate([
-37:             'action' => 'required|in:accept,reject'
-38:         ]);
-39: 
-40:         $status = $validated['action'] === 'accept' ? 'accepted' : 'rejected';
-41: 
-42:         $transaction->update([
-43:             'status' => $status,
-44:             'admin_id' => auth()->id()
-45:         ]);
+9:  use Illuminate\Support\Facades\DB;
+10: 
+11: class DashboardController extends Controller
+12: {
+13:     public function index()
+14:     {
+15:         $metrics = Transaction::selectRaw("
+16:             COALESCE(SUM(CASE WHEN status = 'accepted' THEN amount ELSE 0 END), 0) as total_revenue,
+17:             COALESCE(SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END), 0) as pending_count,
+18:             COALESCE(SUM(CASE WHEN status = 'accepted' THEN 1 ELSE 0 END), 0) as accepted_count,
+19:             COALESCE(SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END), 0) as rejected_count
+20:         ")->first();
+21: 
+22:         $totalRevenue = (float) ($metrics->total_revenue ?? 0);
+23:         $pendingTransactions = (int) ($metrics->pending_count ?? 0);
+24:         $acceptedTransactions = (int) ($metrics->accepted_count ?? 0);
+25:         $rejectedTransactions = (int) ($metrics->rejected_count ?? 0);
+26: 
+27:         $recentTransactions = Transaction::with(['citizen.user.wallet', 'recipientCitizen.user.wallet', 'paymentMethod'])
+28:             ->orderByDesc('created_at')
+29:             ->paginate(15);
+30: 
+31:         return view('admin.dashboard', compact(
+32:             'totalRevenue', 'pendingTransactions', 'acceptedTransactions', 'rejectedTransactions', 'recentTransactions'
+33:         ));
+34:     }
+35: 
+36:     public function updateStatus(Request $request, Transaction $transaction)
+37:     {
+38:         $validated = $request->validate([
+39:             'action' => 'required|in:accept,reject',
+40:             'reason' => 'nullable|string|max:500',
+41:         ]);
+42: 
+43:         if ($transaction->status !== 'pending') {
+44:             return redirect()->back()->with('error', "Transaction has already been {$transaction->status}.");
+45:         }
 46: 
-47:         AuditLog::create([
-48:             'admin_id' => auth()->id(),
-49:             'action' => $status . '_transaction',
-50:             'reference_number' => $transaction->unique_reference_number,
-51:             'details' => "Transaction {$transaction->unique_reference_number} was {$status}."
-52:         ]);
-53: 
-54:         return redirect()->back()->with('success', "Transaction {$transaction->status} successfully.");
-55:     }
-56: }
+47:         return DB::transaction(function () use ($validated, $transaction, $request) {
+48:             $senderCitizen = $transaction->citizen;
+49:             $senderUser = $senderCitizen?->user;
+50:             $amount = (float) $transaction->amount;
+51: 
+52:             if ($validated['action'] === 'accept') {
+53:                 if ($senderUser && !$senderUser->canWithdrawFloat($amount)) {
+54:                     $available = number_format((float)$senderUser->balanceFloat, 2);
+55:                     $transaction->update([
+56:                         'status'           => 'rejected',
+57:                         'rejection_reason' => "Auto-rejected on review: Insufficient sender balance (Available: LYD {$available}).",
+58:                         'admin_id'         => auth()->id(),
+59:                     ]);
+60:                     return redirect()->back()->with('error', "Cannot accept: Sender has insufficient balance.");
+61:                 }
+62: 
+63:                 // Atomic Bavix Wallet Transfer
+64:                 if ($transaction->recipient_citizen_id && $transaction->recipientCitizen?->user) {
+65:                     $recipientUser = $transaction->recipientCitizen->user;
+66:                     if ($senderUser) {
+67:                         $senderUser->transferFloat($recipientUser, $amount, [
+68:                             'unique_reference_number' => $transaction->unique_reference_number,
+69:                             'description' => "Transfer to {$recipientUser->name}"
+70:                         ]);
+71:                     }
+72:                 } elseif ($senderUser) {
+73:                     $senderUser->withdrawFloat($amount, [
+74:                         'unique_reference_number' => $transaction->unique_reference_number,
+75:                     ]);
+76:                 }
+77: 
+78:                 $transaction->update(['status' => 'accepted', 'admin_id' => auth()->id()]);
+79:                 $auditLog = AuditLog::create([
+80:                     'admin_id'         => auth()->id(),
+81:                     'action'           => 'accepted_transaction',
+82:                     'reference_number' => $transaction->unique_reference_number,
+83:                     'details'          => "Transaction {$transaction->unique_reference_number} accepted and settled."
+84:                 ]);
+85: 
+86:                 broadcast(new \App\Events\TransactionStatusUpdated($transaction, $auditLog));
+87:                 return redirect()->back()->with('success', "Transaction accepted and funds transferred successfully.");
+88:             }
+89: 
+90:             // Admin Rejection
+91:             $rejectionReason = $validated['reason'] ?? 'Rejected by administrative authority.';
+92:             $transaction->update([
+93:                 'status'           => 'rejected',
+94:                 'rejection_reason' => $rejectionReason,
+95:                 'admin_id'         => auth()->id(),
+96:             ]);
+97:             $auditLog = AuditLog::create([
+98:                 'admin_id'         => auth()->id(),
+99:                 'action'           => 'rejected_transaction',
+100:                'reference_number' => $transaction->unique_reference_number,
+101:                'details'          => "Transaction {$transaction->unique_reference_number} rejected. Reason: {$rejectionReason}"
+102:            ]);
+103:            broadcast(new \App\Events\TransactionStatusUpdated($transaction, $auditLog));
+104:            return redirect()->back()->with('success', "Transaction rejected.");
+105:        });
+106:    }
+107:}
 ```
-- **Line 12**: `index()`: Builds data for the Admin Dashboard view.
-- **Line 15**: Queries SQL `SUM(amount)` exclusively for transactions marked `'accepted'`, providing an authentic metric of processed financial volume.
-- **Line 17-19**: Runs count aggregates for each pipeline stage: pending, accepted, and rejected.
-- **Line 21-23**: **High-Performance Query with Eager Loading**:
-  - `Transaction::with(['citizen', 'paymentMethod'])`: Resolves the N+1 query problem by loading all associated citizens and payment methods in two fast SQL queries.
-  - `orderByDesc('created_at')`: Ensures the latest incoming transactions appear at the top.
-  - `paginate(15)`: Pages results at 15 items per page to maintain constant memory consumption.
-- **Line 25-31**: Renders `resources/views/admin/dashboard.blade.php`, injecting all 5 computed variables.
-- **Line 34**: `updateStatus(Request $request, Transaction $transaction)`:
-  - Uses Laravel **Route-Model Binding**: Laravel automatically queries the `transactions` table using the URL `{transaction}` parameter ID.
-- **Line 36-38**: Validates that incoming form submission contains `action` which must strictly be either `'accept'` or `'reject'`.
-- **Line 40**: Maps input to corresponding enum value: `'accepted'` or `'rejected'`.
-- **Line 42-45**: Updates transaction status and assigns `admin_id = auth()->id()` to record who approved/rejected it.
-- **Line 47-52**: **Audit Trail Generation**:
-  - Inserts a new record into `audit_logs` capturing the administrator's ID, the action string (`accepted_transaction` or `rejected_transaction`), the reference tracking code, and a description.
-- **Line 54**: Redirects back to dashboard with a flash session success message.
+- **Line 27**: Eager loads `$txn->citizen->user->wallet` and `$txn->recipientCitizen->user->wallet` so the blade view renders live balance badges.
+- **Line 67**: Calls `$senderUser->transferFloat($recipientUser, $amount)` to execute the double-entry accounting ledger swap atomically.
+- **Line 73**: Calls `$senderUser->withdrawFloat($amount)` if the transaction is a direct payment/withdrawal without a recipient.
+- **Line 86 & 103**: Pushes status changes over WebSockets using `TransactionStatusUpdated`.
 
 ---
 
@@ -612,78 +847,99 @@ erDiagram
 14: 
 15: class AuthController extends Controller
 16: {
-17:     // --- Web Session Authentication (Browser Admin) ---
-18:     public function showLogin(): View
-19:     {
-20:         return view('auth.login');
-21:     }
-22: 
-23:     public function login(LoginRequest $request): RedirectResponse
-24:     {
-25:         $request->authenticate();
-26:         $request->session()->regenerate();
-27:         return redirect()->intended(route('admin.dashboard', absolute: false));
-28:     }
-29: 
-30:     public function logout(Request $request): RedirectResponse
-31:     {
-32:         Auth::guard('web')->logout();
-33:         $request->session()->invalidate();
-34:         $request->session()->regenerateToken();
-35:         return redirect('/login');
-36:     }
-37: 
-38:     // --- API Token Authentication (Sanctum Citizens) ---
-39:     public function apiLogin(Request $request): JsonResponse
-40:     {
-41:         $validated = $request->validate([
-42:             'email'    => 'required|string',
-43:             'password' => 'required|string',
-44:         ]);
-45: 
-46:         $user = User::where('email', $validated['email'])
-47:             ->orWhere('phone', $validated['email'])
-48:             ->first();
-49: 
-50:         if (!$user || !Hash::check($validated['password'], $user->password)) {
-51:             return response()->json(['message' => 'Invalid email or password.'], 401);
-52:         }
-53: 
-54:         if (!$user->is_active) {
-55:             return response()->json(['message' => 'Your account has been deactivated.'], 403);
-56:         }
+17:     public function showLogin(): View
+18:     {
+19:         return view('auth.login');
+20:     }
+21: 
+22:     public function login(LoginRequest $request): RedirectResponse
+23:     {
+24:         $request->authenticate();
+25:         $request->session()->regenerate();
+26:         return redirect()->intended(route('admin.dashboard', absolute: false));
+27:     }
+28: 
+29:     public function logout(Request $request): RedirectResponse
+30:     {
+31:         Auth::guard('web')->logout();
+32:         $request->session()->invalidate();
+33:         $request->session()->regenerateToken();
+34:         return redirect('/login');
+35:     }
+36: 
+37:     public function apiLogin(Request $request): JsonResponse
+38:     {
+39:         $validated = $request->validate([
+40:             'email'    => 'required|string',
+41:             'password' => 'required|string',
+42:         ]);
+43: 
+44:         $user = User::where('email', $validated['email'])
+45:             ->orWhere('phone', $validated['email'])
+46:             ->first();
+47: 
+48:         if (!$user || !Hash::check($validated['password'], $user->password)) {
+49:             return response()->json(['message' => 'Invalid email or password.'], 401);
+50:         }
+51: 
+52:         if (!$user->is_active) {
+53:             return response()->json(['message' => 'Your account has been deactivated.'], 403);
+54:         }
+55: 
+56:         $token = $user->createToken('api-access-token')->plainTextToken;
 57: 
-58:         $token = $user->createToken('api-access-token')->plainTextToken;
-59: 
-60:         return response()->json([
-61:             'message'      => 'Login successful',
-62:             'access_token' => $token,
-63:             'token_type'   => 'Bearer',
-64:             'user'         => [
-65:                 'id'    => $user->id,
-66:                 'name'  => $user->name,
-67:                 'email' => $user->email,
-68:                 'phone' => $user->phone,
-69:                 'role'  => $user->getRoleNames()->first() ?? 'citizen',
-70:             ],
-71:         ], 200);
-72:     }
-73: 
-74:     public function apiLogout(Request $request): JsonResponse
-75:     {
-76:         $request->user()->currentAccessToken()->delete();
-77:         return response()->json(['message' => 'Logged out successfully.'], 200);
-78:     }
-79: 
-80:     public function apiMe(Request $request): JsonResponse
-81:     {
-82:         return response()->json(['user' => $request->user()->load('citizen')], 200);
-83:     }
-84: }
+58:         return response()->json([
+59:             'message'      => 'Login successful',
+60:             'access_token' => $token,
+61:             'token_type'   => 'Bearer',
+62:             'user'         => [
+63:                 'id'    => $user->id,
+64:                 'name'  => $user->name,
+65:                 'email' => $user->email,
+66:                 'phone' => $user->phone,
+67:                 'role'  => $user->getRoleNames()->first() ?? 'citizen',
+68:             ],
+69:         ], 200);
+70:     }
+71: 
+72:     public function apiLogout(Request $request): JsonResponse
+73:     {
+74:         $request->user()->currentAccessToken()->delete();
+75:         return response()->json(['message' => 'Logged out successfully.'], 200);
+76:     }
+77: 
+78:     public function apiMe(Request $request): JsonResponse
+79:     {
+80:         $user = $request->user();
+81:         return response()->json([
+82:             'user' => [
+83:                 'id'            => $user->id,
+84:                 'name'          => $user->name,
+85:                 'email'         => $user->email,
+86:                 'phone'         => $user->phone,
+87:                 'balance'       => (float) $user->balanceFloat,
+88:                 'currency'      => 'LYD',
+89:                 'citizen'       => $user->citizen,
+90:             ],
+91:         ], 200);
+92:     }
+93: 
+94:     public function apiWallet(Request $request): JsonResponse
+95:     {
+96:         $user = $request->user();
+97:         return response()->json([
+98:             'wallet'            => $user->wallet,
+99:             'balance'           => (float) $user->balanceFloat,
+100:            'available_balance' => (float) $user->balanceFloat,
+101:            'currency'          => 'LYD',
+102:            'transactions'      => $user->transactions()->orderByDesc('id')->take(10)->get(),
+103:        ], 200);
+104:    }
+105:}
 ```
 - **Consolidated Architecture**: Unifies Web session management and API Sanctum token workflows into a single controller, avoiding duplicate controller sprawl.
 - **Web Methods (`showLogin`, `login`, `logout`)**: Manages browser cookies, session regeneration, and CSRF token rotation.
-- **API Methods (`apiLogin`, `apiLogout`, `apiMe`)**: Authenticates citizens via email/password or phone, verifies active account status, issues Sanctum Personal Access Tokens (`plainTextToken`), and revokes tokens upon logout.
+- **API Methods (`apiLogin`, `apiLogout`, `apiMe`, `apiWallet`)**: Authenticates citizens via email/password or phone, issues Sanctum tokens, returns verified wallet balances via `$user->balanceFloat`, and surfaces atomic ledger history.
 
 ---
 
@@ -989,7 +1245,7 @@ erDiagram
 - **Line 24-33**: Creates system permissions (`transactions.view-all`, `transactions.approve`, `transactions.reject`, `transactions.create`).
 - **Line 38-45**: Synchronizes administrative permissions to `admin` and `transactions.create` to `citizen`.
 - **Line 48-57**: Creates the default administrator account (`admin@admin.com` / `password`).
-- **Line 60-145**: Automatically seeds and links **8 authenticated citizen accounts** (Jane Doe, Ahmed Mohamed, Siraj Ashraf, and 5 Libyan citizens with `.ly` emails and Libyan carrier mobile numbers `+21891...`, `+21892...`, `+21894...`). Each citizen is synchronized to `citizens` via `user_id`, granted an initialized `wallets` record with positive test balances, and has a corresponding initial deposit ledger entry recorded in `wallet_ledgers`.
+- **Line 60-145**: Automatically seeds and links **8 authenticated citizen accounts** (Jane Doe, Ahmed Mohamed, Siraj Ashraf, and 5 Libyan citizens with `.ly` emails and Libyan carrier mobile numbers `+21891...`, `+21892...`, `+21894...`). Each citizen is synchronized to `citizens` via `user_id`, granted an initialized `wallets` record with positive test balances, and has a corresponding initial deposit ledger entry recorded in `wallet_transactions` via `depositFloat()`.
 
 #### Seeded Citizen Accounts & Wallet Balances Reference Table
 
